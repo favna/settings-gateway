@@ -7,7 +7,7 @@
 		"noUnusedParameters": true,
 		"outDir": "./dist",
 		"sourceMap": true,
-		"types": ["node"],
+		"types": ["node", "discord.js", "klasa"],
         "declaration": true,
         "noUnusedLocals": true,
         "removeComments": false,
