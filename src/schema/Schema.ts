@@ -1,5 +1,5 @@
 import { SchemaFolder } from './SchemaFolder';
-import { SchemaEntry, SchemaEntryOptions } from './SchemaEntry';
+import { SchemaEntry, SchemaEntryOptions, SchemaEntryJson } from './SchemaEntry';
 import { isFunction } from '@klasa/utils';
 import { SettingsFolder } from '../settings/SettingsFolder';
 import { Language } from 'klasa';
@@ -82,7 +82,7 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 			if (type === 'Folder') {
 				if (previous.type === 'Folder') {
 					// Call the callback with the pre-existent Folder
-					callback(previous as SchemaFolder);
+					if (callback !== null) callback(previous as SchemaFolder);
 					return this;
 				}
 
@@ -110,19 +110,30 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 	 * Get a children entry from this schema.
 	 * @param path The key or path to get from this schema
 	 */
-	public get(path: string): SchemaFolder | SchemaEntry {
-		try {
-			return path.split('.').reduce((folder, key) => Map.prototype.get.call(folder, key), this);
-		} catch {
-			// noop
-		}
+	public get(path: string): SchemaFolder | SchemaEntry | undefined {
+		const index = path.indexOf('.');
+		if (index === -1) return super.get(path);
+
+		const key = path.substring(0, index);
+		const value = super.get(key);
+
+		// If the returned value was undefined, return undefined
+		if (typeof value === 'undefined') return undefined;
+
+		// If the returned value is a SchemaFolder, return its result from SchemaFolder#get using remaining string
+		if (value.type === 'Folder') return (value as SchemaFolder).get(path.substring(index + 1));
+
+		// Return value
+		return value;
 	}
 
-	public resolve(settings: SettingsFolder, language: Language, guild: Guild) {
+	public resolve(settings: SettingsFolder, language: Language, guild: Guild | null) {
 		const promises = [];
 		for (const entry of this.values(true)) {
 			promises.push(entry.resolve(settings, language, guild));
 		}
+
+		return Promise.all(promises);
 	}
 
 	/**
@@ -177,7 +188,7 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 		}
 	}
 
-	public toJSON() {
+	public toJSON(): SchemaJson {
 		return Object.fromEntries([...this.entries()].map(([key, value]) => [key, value.toJSON()]));
 	}
 
@@ -186,3 +197,6 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 export interface SchemaAddCallback {
 	(folder: SchemaFolder): unknown;
 }
+
+export interface SchemaFolderJson extends Record<string, SchemaFolderJson | SchemaEntryJson> { }
+export interface SchemaJson extends Record<string, SchemaFolderJson | SchemaEntryJson> { }

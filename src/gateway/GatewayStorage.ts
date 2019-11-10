@@ -31,8 +31,8 @@ export class GatewayStorage {
 	public constructor(client: Client, name: string, options: GatewayStorageOptions) {
 		this.client = client;
 		this.name = name;
-		this.schema = 'schema' in options ? options.schema : new Schema();
-		this._provider = 'provider' in options ? options.provider : client.options.providers.default;
+		this.schema = options.schema || new Schema();
+		this._provider = options.provider || client.options.providers.default || '';
 	}
 
 	/**

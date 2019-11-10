@@ -4,6 +4,7 @@ import { isNumber, isFunction } from '@klasa/utils';
 import { SettingsFolder } from '../settings/SettingsFolder';
 import { Guild } from 'discord.js';
 import { SchemaFolder } from './SchemaFolder';
+import { SerializableValue } from '../lib/types';
 
 export class SchemaEntry {
 
@@ -40,7 +41,7 @@ export class SchemaEntry {
 	/**
 	 * The default value this entry will set when reverting a setting back to or when the key was not set.
 	 */
-	public default: unknown;
+	public default: SerializableValue;
 
 	/**
 	 * The minimum value for this entry.
@@ -78,28 +79,29 @@ export class SchemaEntry {
 		this.key = key;
 		this.path = this.parent.path.length === 0 ? `${this.parent.path}.${this.key}` : this.key;
 		this.type = type.toLowerCase();
-		this.array = 'array' in options ? options.array : 'default' in options ? Array.isArray(options.default) : false;
-		this.default = 'default' in options ? options.default : this.generateDefaultValue();
-		this.minimum = 'minimum' in options ? options.minimum : null;
-		this.maximum = 'maximum' in options ? options.maximum : null;
-		this.inclusive = 'inclusive' in options ? options.inclusive : false;
-		this.configurable = 'configurable' in options ? options.configurable : this.type !== 'any';
-		this.filter = 'filter' in options ? options.filter : null;
-		this.shouldResolve = 'resolve' in options ? options.resolve : true;
+		this.array = typeof options.array === 'undefined' ? typeof options.default === 'undefined' ? false : Array.isArray(options.default) : options.array;
+		this.default = typeof options.default === 'undefined' ? this.generateDefaultValue() : options.default;
+		this.minimum = typeof options.minimum === 'undefined' ? null : options.minimum;
+		this.maximum = typeof options.maximum === 'undefined' ? null : options.maximum;
+		this.inclusive = typeof options.inclusive === 'undefined' ? false : options.inclusive;
+		this.configurable = typeof options.configurable === 'undefined' ? this.type !== 'any' : options.configurable;
+		this.filter = typeof options.filter === 'undefined' ? null : options.filter;
+		this.shouldResolve = typeof options.resolve === 'undefined' ? true : options.resolve;
 	}
 
 	public get serializer(): Serializer {
+		if (this.client === null) throw new Error('Cannot retrieve serializers from non-initialized SchemaEntry.');
 		return this.client.serializers.get(this.type);
 	}
 
 	public edit(options: SchemaEntryEditOptions = {}): this {
-		if ('type' in options) this.type = options.type;
-		if ('array' in options) this.array = options.array;
-		if ('configurable' in options) this.configurable = options.configurable;
-		if ('default' in options) this.default = options.default;
-		if ('filter' in options) this.filter = options.filter;
-		if ('inclusive' in options) this.inclusive = options.inclusive;
-		if ('resolve' in options) this.shouldResolve = options.resolve;
+		if (typeof options.type !== 'undefined') this.type = options.type;
+		if (typeof options.array !== 'undefined') this.array = options.array;
+		if (typeof options.configurable !== 'undefined') this.configurable = options.configurable;
+		if (typeof options.default !== 'undefined') this.default = options.default;
+		if (typeof options.filter !== 'undefined') this.filter = options.filter;
+		if (typeof options.inclusive !== 'undefined') this.inclusive = options.inclusive;
+		if (typeof options.resolve !== 'undefined') this.shouldResolve = options.resolve;
 
 		if (('minimum' in options) || ('maximum' in options)) {
 			const { minimum = null, maximum = null } = options;
@@ -111,6 +113,8 @@ export class SchemaEntry {
 	}
 
 	public check(): void {
+		if (this.client === null) throw new Error('Cannot retrieve serializers from non-initialized SchemaEntry.');
+
 		// Check type
 		if (typeof this.type !== 'string') throw new TypeError(`[KEY] ${this.path} - Parameter type must be a string.`);
 		if (!this.client.serializers.has(this.type)) throw new TypeError(`[KEY] ${this.path} - ${this.type} is not a valid type.`);
@@ -137,13 +141,15 @@ export class SchemaEntry {
 		}
 	}
 
-	public async resolve(settings: SettingsFolder, language: Language, guild: Guild): Promise<unknown> {
+	public async resolve(settings: SettingsFolder, language: Language, guild: Guild | null): Promise<unknown> {
 		const values = settings.get(this.path);
+		if (typeof values === 'undefined') return undefined;
+
 		if (!this.shouldResolve) return values;
 
 		const { serializer } = this;
 		if (this.array) {
-			return (await Promise.all((values as readonly unknown[]).map(value => serializer.deserialize(value, this, language, guild))))
+			return (await Promise.all((values as unknown as readonly unknown[]).map(value => serializer.deserialize(value, this, language, guild))))
 				.filter(value => value !== null);
 		}
 
@@ -156,7 +162,7 @@ export class SchemaEntry {
 	 * @param guild The guild to use for parsing
 	 */
 	public async parse(value: unknown, guild: Guild | null = null): Promise<unknown> {
-		const language = guild === null ? guild.language : this.client.languages.default;
+		const language = guild === null ? this.client.languages.default : guild.language;
 		const parsed = await this.serializer.deserialize(value, this, language, guild);
 		if (this.filter !== null && this.filter(this.client, parsed, this, language)) throw language.get('SETTING_GATEWAY_INVALID_FILTERED_VALUE', this, value);
 		return parsed;
@@ -183,17 +189,14 @@ export class SchemaEntry {
 
 }
 
-export type AnyObject = {} | Record<string | number | symbol, unknown>;
-export type SerializableValue = boolean | number | string | AnyObject;
-
 export interface SchemaEntryOptions {
 	array?: boolean;
 	configurable?: boolean;
 	default?: SerializableValue;
 	filter?: SchemaEntryFilterFunction;
 	inclusive?: boolean;
-	maximum?: number;
-	minimum?: number;
+	maximum?: number | null;
+	minimum?: number | null;
 	resolve?: boolean;
 }
 
