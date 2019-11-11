@@ -1,10 +1,11 @@
-import { Client, Language, Serializer } from 'klasa';
+import { Language } from 'klasa';
 import { Schema } from './Schema';
 import { isNumber, isFunction } from '@klasa/utils';
 import { SettingsFolder } from '../settings/SettingsFolder';
 import { Guild } from 'discord.js';
 import { SchemaFolder } from './SchemaFolder';
-import { SerializableValue } from '../types';
+import { Client, SerializableValue } from '../types';
+import { Serializer } from '../structures/Serializer';
 
 export class SchemaEntry {
 
@@ -89,9 +90,9 @@ export class SchemaEntry {
 		this.shouldResolve = typeof options.resolve === 'undefined' ? true : options.resolve;
 	}
 
-	public get serializer(): Serializer {
+	public get serializer(): Serializer | null {
 		if (this.client === null) throw new Error('Cannot retrieve serializers from non-initialized SchemaEntry.');
-		return this.client.serializers.get(this.type);
+		return this.client.serializers.get(this.type) || null;
 	}
 
 	public edit(options: SchemaEntryEditOptions = {}): this {
@@ -148,8 +149,9 @@ export class SchemaEntry {
 		if (!this.shouldResolve) return values;
 
 		const { serializer } = this;
+		if (serializer === null) throw new Error('The serializer was not available during the resolve.');
 		if (this.array) {
-			return (await Promise.all((values as unknown as readonly unknown[]).map(value => serializer.deserialize(value, this, language, guild))))
+			return (await Promise.all((values as unknown as readonly SerializableValue[]).map(value => serializer.deserialize(value, this, language, guild))))
 				.filter(value => value !== null);
 		}
 

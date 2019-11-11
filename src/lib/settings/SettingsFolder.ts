@@ -1,10 +1,10 @@
-import { SerializableValue, ReadonlyAnyObject } from '../types';
 import { Schema } from '../schema/Schema';
 import { Settings } from './Settings';
 import { Gateway } from '../gateway/Gateway';
 import { SchemaFolder } from '../schema/SchemaFolder';
 import { SchemaEntry } from '../schema/SchemaEntry';
-import { Client, Language } from 'klasa';
+import { Language } from 'klasa';
+import { Client, SerializableValue, ReadonlyAnyObject } from '../types';
 import { GuildResolvable, Guild } from 'discord.js';
 import { isObject, objectToTuples, mergeObjects, makeObject } from '@klasa/utils';
 import arraysStrictEquals from '@klasa/utils/dist/lib/arrayStrictEquals';
@@ -309,7 +309,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		}
 
 		if (!schemaEntry.array) {
-			value = await this._updateSchemaEntryValue(schemaEntry, value, language, options.guild);
+			value = await this._updateSchemaEntryValue(schemaEntry, value, language, options.guild) as SerializableValue;
 			return { previous, next: value, entry: schemaEntry };
 		}
 
@@ -365,8 +365,10 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		};
 	}
 
-	private async _updateSchemaEntryValue(schemaEntry: SchemaEntry, value: SerializableValue, language: Language, guild: Guild | null): Promise<SerializableValue> {
-		const parsed = await schemaEntry.serializer.deserialize(value, schemaEntry, language, guild);
+	private async _updateSchemaEntryValue(schemaEntry: SchemaEntry, value: SerializableValue, language: Language, guild: Guild | null): Promise<unknown> {
+		const { serializer } = schemaEntry;
+		if (serializer === null) throw new Error('The serializer was not available during the update.');
+		const parsed = await serializer.deserialize(value, schemaEntry, language, guild);
 		if (schemaEntry.filter !== null && schemaEntry.filter(this.client, parsed, schemaEntry, language)) throw language.get('SETTING_GATEWAY_INVALID_FILTERED_VALUE', schemaEntry, value);
 		return parsed;
 	}

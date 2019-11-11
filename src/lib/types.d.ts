@@ -1,3 +1,12 @@
+import { Client as DiscordClient } from 'discord.js';
+import { ProviderStore } from './structures/ProviderStore';
+import { SerializerStore } from './structures/SerializerStore';
+
 export type AnyObject = {} | Record<string | number | symbol, unknown>;
 export type ReadonlyAnyObject = Readonly<AnyObject>;
 export type SerializableValue = boolean | number | string | AnyObject | SerializableValue[] | null;
+
+export interface Client extends Omit<DiscordClient, 'providers' | 'serializers'> {
+	providers: ProviderStore;
+	serializers: SerializerStore;
+}

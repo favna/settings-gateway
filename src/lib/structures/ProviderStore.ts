@@ -1,5 +1,6 @@
-import { Client, Store } from 'klasa';
+import { Store } from 'klasa';
 import { Provider } from './Provider';
+import { Client } from '../types';
 
 export class ProviderStore extends Store<string, Provider> {
 

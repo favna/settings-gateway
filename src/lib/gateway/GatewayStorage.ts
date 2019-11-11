@@ -1,5 +1,6 @@
-import { Client, Provider } from 'klasa';
+import { Client } from '../types';
 import { Schema, SchemaJson } from '../schema/Schema';
+import { Provider } from '../structures/Provider';
 
 export class GatewayStorage {
 

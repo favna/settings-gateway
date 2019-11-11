@@ -1,16 +1,16 @@
 import { GatewayStorage } from './GatewayStorage';
-import { KlasaClient } from 'klasa';
 import { Collection } from '@discordjs/collection';
 import { Settings } from '../settings/Settings';
 import { RequestHandler, IdKeyed } from '@klasa/request-handler';
+import { Client } from '../types';
 
 export class Gateway extends GatewayStorage {
 
 	/**
 	 * The cached entries for this Gateway or the external datastore to get the settings from.
 	 */
-	public cache: ProxyMap = (this.name in this.client) && (this.client[this.name as keyof KlasaClient] instanceof Map) ?
-		this.client[this.name as keyof KlasaClient] as ProxyMap :
+	public cache: ProxyMap = (this.name in this.client) && (this.client[this.name as keyof Client] instanceof Map) ?
+		this.client[this.name as keyof Client] as ProxyMap :
 		new Collection<string, ProxyMapEntry>();
 
 	/**

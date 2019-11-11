@@ -1,6 +1,6 @@
 import Collection from '@discordjs/collection';
 import { GatewayStorage, GatewayStorageJson } from './GatewayStorage';
-import { Client } from 'klasa';
+import { Client } from '../types';
 
 export class GatewayDriver extends Collection<string, GatewayStorage> {
 
