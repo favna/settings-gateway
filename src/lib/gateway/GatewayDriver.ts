@@ -25,6 +25,7 @@ export class GatewayDriver extends Collection<string, GatewayStorage> {
 	public register(gateway: GatewayStorage): this {
 		if (typeof this.client.options.settings.gateways === 'undefined') this.client.options.settings.gateways = {};
 		if (!(gateway.name in this.client.options.settings.gateways)) this.client.options.settings.gateways[gateway.name] = {};
+		this.set(gateway.name, gateway);
 		return this;
 	}
 
