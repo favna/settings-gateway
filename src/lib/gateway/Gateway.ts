@@ -1,7 +1,7 @@
-import { GatewayStorage } from './GatewayStorage';
-import { Collection } from '@discordjs/collection';
-import { Settings } from '../settings/Settings';
 import { RequestHandler, IdKeyed } from '@klasa/request-handler';
+import Collection from '@discordjs/collection';
+import { GatewayStorage } from './GatewayStorage';
+import { Settings } from '../settings/Settings';
 import { Client } from '../types';
 
 export class Gateway extends GatewayStorage {

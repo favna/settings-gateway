@@ -1,6 +1,11 @@
 import ava from 'ava';
-import util from '../dist';
+import { MockClient } from './lib/MockClient';
 
-ava('sample test', (test): void => {
-	test.is(util(), 'bar');
+ava('client-extensions', (test): void => {
+	test.plan(3);
+
+	const client = new MockClient();
+	test.true(client.providers instanceof Map);
+	test.true(client.serializers instanceof Map);
+	test.true(client.gateways instanceof Map);
 });

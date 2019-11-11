@@ -12,7 +12,3 @@ export * from './lib/structures/ProviderStore';
 export * from './lib/structures/Serializer';
 export * from './lib/structures/SerializerStore';
 export * from './lib/types';
-
-export default function foo(): string {
-	return 'bar';
-}

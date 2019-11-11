@@ -1,5 +1,6 @@
-import { AliasStore, Client } from 'klasa';
+import { AliasStore } from 'klasa';
 import { Serializer } from './Serializer';
+import { Client } from '../types';
 
 export class SerializerStore extends AliasStore<string, Serializer> {
 

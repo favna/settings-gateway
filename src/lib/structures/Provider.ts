@@ -46,7 +46,7 @@ export abstract class Provider extends Piece {
 	 * @param table The table to query
 	 * @param entry The ID of the entry to retrieve
 	 */
-	public abstract get(table: string, entry: string): Promise<KeyedObject>;
+	public abstract get(table: string, entry: string): Promise<KeyedObject | null>;
 
 	/**
 	 * Retrieve all entries from a table.
