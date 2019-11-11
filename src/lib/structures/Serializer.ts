@@ -36,7 +36,7 @@ export abstract class Serializer extends AliasPiece {
 	 * @param entry The schema entry that manages the key
 	 * @param language The language that is used for this context
 	 */
-	protected static minOrMax(value: number, { minimum, maximum, inclusive, key }: SchemaEntry, language: Language) {
+	protected static minOrMax(value: number, { minimum, maximum, inclusive, key }: SchemaEntry, language: Language): boolean {
 		if (minimum && maximum) {
 			if ((value >= minimum && value <= maximum && inclusive) || (value > minimum && value < maximum && !inclusive)) return true;
 			if (minimum === maximum) throw language.get('RESOLVER_MINMAX_EXACTLY', key, minimum, inclusive);

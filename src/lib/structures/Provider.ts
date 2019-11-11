@@ -96,6 +96,7 @@ export abstract class Provider extends Piece {
 	 * @param table The table to check against
 	 * @param entry The SchemaFolder or SchemaEntry added to the schema
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	public async addColumn(_table: string, _entry: SchemaFolder | SchemaEntry): Promise<void> {
 		// Reserved for SQL databases
 	}
@@ -106,6 +107,7 @@ export abstract class Provider extends Piece {
 	 * @param table The table to check against
 	 * @param columns The column names to remove
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	public async removeColumn(_table: string, _columns: readonly string[]): Promise<void> {
 		// Reserved for SQL databases
 	}
@@ -115,6 +117,7 @@ export abstract class Provider extends Piece {
 	 * @param table The table to check against
 	 * @param entry The modified SchemaEntry
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	public async updateColumn(_table: string, _entry: SchemaEntry): Promise<void> {
 		// Reserved for SQL databases
 	}
@@ -123,6 +126,7 @@ export abstract class Provider extends Piece {
 	 * The getColumns method which gets the name of all columns.
 	 * @param table The table to check against
 	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	public async getColumns(_table: string): Promise<string[]> {
 		// Reserved for SQL databases
 		return [];
