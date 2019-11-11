@@ -1,5 +1,3 @@
-import { SchemaFolder } from './SchemaFolder';
-import { SchemaEntry, SchemaEntryOptions, SchemaEntryJson } from './SchemaEntry';
 import { isFunction } from '@klasa/utils';
 import { SettingsFolder } from '../settings/SettingsFolder';
 import { Language } from 'klasa';
@@ -204,3 +202,6 @@ export interface SchemaAddCallback {
 export interface SchemaFolderJson extends Record<string, SchemaFolderJson | SchemaEntryJson> { }
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SchemaJson extends Record<string, SchemaFolderJson | SchemaEntryJson> { }
+
+import { SchemaFolder } from './SchemaFolder';
+import { SchemaEntry, SchemaEntryOptions, SchemaEntryJson } from './SchemaEntry';
