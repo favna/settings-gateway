@@ -156,32 +156,20 @@ export class SchemaEntry {
 		return serializer.deserialize(values, this, language, guild);
 	}
 
-	/**
-	 * Parses a value into a resolved format for Settings.
-	 * @param value The value to parse
-	 * @param guild The guild to use for parsing
-	 */
-	public async parse(value: unknown, guild: Guild | null = null): Promise<unknown> {
-		const language = guild === null ? this.client.languages.default : guild.language;
-		const parsed = await this.serializer.deserialize(value, this, language, guild);
-		if (this.filter !== null && this.filter(this.client, parsed, this, language)) throw language.get('SETTING_GATEWAY_INVALID_FILTERED_VALUE', this, value);
-		return parsed;
-	}
-
 	public toJSON(): SchemaEntryJson {
 		return {
-			'type': this.type,
-			'array': this.array,
-			'configurable': this.configurable,
-			'default': this.default,
-			'inclusive': this.inclusive,
-			'maximum': this.maximum,
-			'minimum': this.minimum,
-			'resolve': this.shouldResolve
+			type: this.type,
+			array: this.array,
+			configurable: this.configurable,
+			default: this.default,
+			inclusive: this.inclusive,
+			maximum: this.maximum,
+			minimum: this.minimum,
+			resolve: this.shouldResolve
 		};
 	}
 
-	private generateDefaultValue() {
+	private generateDefaultValue(): SerializableValue {
 		if (this.array) return [];
 		if (this.type === 'boolean') return false;
 		return null;
@@ -204,6 +192,7 @@ export interface SchemaEntryEditOptions extends SchemaEntryOptions {
 	type?: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SchemaEntryJson extends Required<Omit<SchemaEntryEditOptions, 'filter'>> { }
 
 export interface SchemaEntryFilterFunction {

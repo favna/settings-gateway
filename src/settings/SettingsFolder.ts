@@ -5,7 +5,7 @@ import { Gateway } from '../gateway/Gateway';
 import { SchemaFolder } from '../schema/SchemaFolder';
 import { SchemaEntry } from '../schema/SchemaEntry';
 import { Client, Language } from 'klasa';
-import { GuildResolvable } from 'discord.js';
+import { GuildResolvable, Guild } from 'discord.js';
 import { isObject, objectToTuples, mergeObjects, makeObject } from '@klasa/utils';
 import arraysStrictEquals from '@klasa/utils/dist/lib/arrayStrictEquals';
 
@@ -56,7 +56,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		try {
 			return path.split('.').reduce((folder, key) => Map.prototype.get.call(folder, key), this);
 		} catch {
-			// noop
+			return undefined;
 		}
 	}
 
@@ -67,18 +67,18 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 	 * const [x, y] = message.guild.settings.pluck('x', 'y');
 	 * console.log(x, y);
 	 */
-	public pluck(...paths: readonly string[]) {
+	public pluck(...paths: readonly string[]): SerializableValue[] {
 		return paths.map(path => {
 			const value = this.get(path);
 			return value instanceof SettingsFolder ? value.toJSON() : value;
-		});
+		}) as SerializableValue[];
 	}
 
 	/**
 	 * Resolves paths into their full objects or values depending on the current set value
 	 * @param paths The paths to resolve
 	 */
-	public resolve(...paths: readonly string[]) {
+	public resolve(...paths: readonly string[]): Promise<unknown[]> {
 		if (this.base === null) throw new Error('Cannot retrieve guild from a non-ready settings instance.');
 
 		const guild = this.client.guilds.resolve(this.base.target as GuildResolvable);
@@ -103,13 +103,13 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		return this.relative(pathOrEntry.path);
 	}
 
-	public async reset(paths: string | ReadonlyAnyObject | readonly string[] = [...this.keys()], options: Readonly<SettingsFolderResetOptions> = {}) {
+	public async reset(paths: string | ReadonlyAnyObject | readonly string[] = [...this.keys()], options: Readonly<SettingsFolderResetOptions> = {}): Promise<SettingsUpdateResults> {
 		if (this.base === null) {
 			throw new Error('Cannot reset keys from a non-ready settings instance.');
 		}
 
 		if (this.base.existenceStatus === SettingsExistenceStatus.Unsynchronized) {
-			throw new Error('Cannot reset keys from a pending to synchronize settings instance. Perhaps you want to call `reset()` first.');
+			throw new Error('Cannot reset keys from a pending to synchronize settings instance. Perhaps you want to call `sync()` first.');
 		}
 
 		if (typeof paths === 'string') paths = [paths];
@@ -135,9 +135,94 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		return changes;
 	}
 
-	public toJSON() { }
+	public update(path: string, value: SerializableValue, options?: SettingsFolderUpdateOptions): Promise<SettingsUpdateResults>;
+	public update(entries: [string, SerializableValue][], options?: SettingsFolderUpdateOptions): Promise<SettingsUpdateResults>;
+	public update(entries: ReadonlyAnyObject, options?: SettingsFolderUpdateOptions): Promise<SettingsUpdateResults>;
+	public async update(pathOrEntries: PathOrEntries, valueOrOptions?: ValueOrOptions, options: SettingsFolderUpdateOptions = {}): Promise<SettingsUpdateResults> {
+		if (this.base === null) {
+			throw new Error('Cannot update keys from a non-ready settings instance.');
+		}
 
-	protected _init(folder: SettingsFolder, schema: Schema | SchemaFolder) {
+		if (this.base.existenceStatus === SettingsExistenceStatus.Unsynchronized) {
+			throw new Error('Cannot update keys from a pending to synchronize settings instance. Perhaps you want to call `sync()` first.');
+		}
+
+		let entries: [string, SerializableValue][];
+		if (typeof pathOrEntries === 'string') {
+			entries = [[pathOrEntries, valueOrOptions as SerializableValue]];
+		} else if (isObject(pathOrEntries)) {
+			entries = objectToTuples(pathOrEntries as ReadonlyAnyObject) as [string, SerializableValue][];
+			options = valueOrOptions as SettingsFolderUpdateOptions;
+		} else {
+			entries = pathOrEntries as [string, SerializableValue][];
+			options = valueOrOptions as SettingsFolderUpdateOptions;
+		}
+
+		const { client, schema } = this;
+		const onlyConfigurable = typeof options.onlyConfigurable === 'undefined' ? false : options.onlyConfigurable;
+		const arrayAction = typeof options.arrayAction === 'undefined' ? ArrayActions.Auto : options.arrayAction;
+		const arrayIndex = typeof options.arrayIndex === 'undefined' ? null : options.arrayIndex;
+		const guild = client.guilds.resolve(typeof options.guild === 'undefined' ? this.base.target as GuildResolvable : options.guild);
+		const language = guild === null ? client.languages.default : guild.language;
+		const internalOptions: InternalSettingsFolderUpdateOptions = { arrayAction, arrayIndex, guild, onlyConfigurable };
+
+		const promises: Promise<SettingsUpdateResult>[] = [];
+		for (const [path, value] of entries) {
+			const key = this.relative(path);
+			const entry = schema.get(key);
+
+			// If the key does not exist, throw
+			if (typeof entry === 'undefined') throw language.get('SETTING_GATEWAY_KEY_NOEXT', path);
+			if (entry.type === 'Folder') {
+				const keys = onlyConfigurable ?
+					[...(entry as SchemaFolder).values()].filter(val => val.type !== 'Folder').map(val => val.key) :
+					[...(entry as SchemaFolder).keys()];
+				throw keys.length > 0 ?
+					language.get('SETTING_GATEWAY_CHOOSE_KEY', keys.join('\', \'')) :
+					language.get('SETTING_GATEWAY_UNCONFIGURABLE_FOLDER');
+			}
+
+			promises.push(this._updateSchemaEntry(entry as SchemaEntry, key, value, language, internalOptions));
+		}
+
+		const changes = await Promise.all(promises);
+		await this._save(changes);
+		return changes;
+	}
+
+	public toJSON(): SettingsFolderJson {
+		const json: SettingsFolderJson = {};
+		for (const [key, value] of super.entries()) {
+			json[key] = value instanceof SettingsFolder ? value.toJSON() : value;
+		}
+
+		return json;
+	}
+
+	/**
+	 * Patch an object against this instance.
+	 * @param data The data to apply to this instance
+	 */
+	protected _patch(data: ReadonlyAnyObject): void {
+		for (const [key, value] of Object.entries(data)) {
+			// Undefined values are invalid values, skip.
+			if (typeof value === 'undefined') continue;
+
+			// Retrieve the key and guard it, if it's undefined, it's not in the schema.
+			const childValue = super.get(key);
+			if (typeof childValue === 'undefined') continue;
+
+			if (childValue instanceof SettingsFolder) childValue._patch(value as ReadonlyAnyObject);
+			else super.set(key, value as SerializableValue);
+		}
+	}
+
+	/**
+	 * Initializes a SettingsFolder, preparing it for later usage.
+	 * @param folder The children folder of this instance
+	 * @param schema The schema that manages the folder
+	 */
+	protected _init(folder: SettingsFolder, schema: Schema | SchemaFolder): void {
 		folder.base = this.base;
 
 		for (const [key, value] of schema.entries()) {
@@ -151,7 +236,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		}
 	}
 
-	protected async _save(changes: SettingsUpdateResults) {
+	protected async _save(changes: SettingsUpdateResults): Promise<void> {
 		const updateObject = {};
 		for (const change of changes) mergeObjects(updateObject, makeObject(change.entry.path, change.next));
 
@@ -169,7 +254,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		}
 	}
 
-	private _resetSchemaFolder(changes: SettingsUpdateResults, schemaFolder: SchemaFolder, key: string, language: Language, onlyConfigurable: boolean) {
+	private _resetSchemaFolder(changes: SettingsUpdateResults, schemaFolder: SchemaFolder, key: string, language: Language, onlyConfigurable: boolean): void {
 		let nonConfigurable = 0;
 		let skipped = 0;
 		let processed = 0;
@@ -203,7 +288,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		if (processed === 0 && skipped === 0 && nonConfigurable !== 0) throw language.get('SETTING_GATEWAY_UNCONFIGURABLE_FOLDER');
 	}
 
-	private _resetSchemaEntry(changes: SettingsUpdateResults, schemaEntry: SchemaEntry, key: string, language: Language, onlyConfigurable: boolean) {
+	private _resetSchemaEntry(changes: SettingsUpdateResults, schemaEntry: SchemaEntry, key: string, language: Language, onlyConfigurable: boolean): void {
 		if (onlyConfigurable && !schemaEntry.configurable) {
 			throw language.get('SETTING_GATEWAY_UNCONFIGURABLE_FOLDER');
 		}
@@ -213,6 +298,77 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			next: schemaEntry.default,
 			entry: schemaEntry
 		});
+	}
+
+	private async _updateSchemaEntry(schemaEntry: SchemaEntry, key: string, value: SerializableValue, language: Language, options: InternalSettingsFolderUpdateOptions): Promise<SettingsUpdateResult> {
+		const previous = this.get(key) as SerializableValue;
+
+		// If null or undefined, return the default value instead
+		if (value === null || typeof value === 'undefined') {
+			return { previous, next: schemaEntry.default, entry: schemaEntry };
+		}
+
+		if (!schemaEntry.array) {
+			value = await this._updateSchemaEntryValue(schemaEntry, value, language, options.guild);
+			return { previous, next: value, entry: schemaEntry };
+		}
+
+		if (Array.isArray(value)) value = await Promise.all(value.map(val => this._updateSchemaEntryValue(schemaEntry, val, language, options.guild)));
+		else value = [await this._updateSchemaEntryValue(schemaEntry, value, language, options.guild)];
+
+		if (options.arrayAction === ArrayActions.Overwrite) {
+			return { previous, next: value, entry: schemaEntry };
+		}
+
+		const next = value as readonly SerializableValue[];
+		const clone = (previous as readonly SerializableValue[]).slice(0);
+		if (options.arrayIndex !== null) {
+			if (options.arrayIndex < 0 || options.arrayIndex > clone.length + 1) {
+				throw new Error(`The index ${options.arrayIndex} is bigger than the current array. It must be a value in the range of 0..${clone.length + 1}.`);
+			}
+
+			if (options.arrayAction === ArrayActions.Add) {
+				clone.splice(options.arrayIndex, 0, ...next);
+			} else if (options.arrayAction === ArrayActions.Remove || next[0] === null) {
+				clone.splice(options.arrayIndex, 1);
+			} else {
+				[clone[options.arrayIndex]] = next;
+			}
+		} else if (options.arrayAction === ArrayActions.Auto) {
+			// Array action auto must add or remove values, depending on their existence
+			for (const val of next) {
+				const index = clone.indexOf(val);
+				if (index === -1) clone.push(val);
+				else clone.splice(index, 1);
+			}
+		} else if (options.arrayAction === ArrayActions.Add) {
+			// Array action add must add values, throw on existent
+			for (const val of next) {
+				if (clone.includes(val)) throw new Error(`The value ${val} for the key ${schemaEntry.path} already exists.`);
+				clone.push(val);
+			}
+		} else if (options.arrayAction === ArrayActions.Remove) {
+			// Array action remove must add values, throw on non-existent
+			for (const val of next) {
+				const index = clone.indexOf(val);
+				if (index === -1) throw new Error(`The value ${val} for the key ${schemaEntry.path} does not exist.`);
+				clone.splice(index, 1);
+			}
+		} else {
+			throw new TypeError(`The ${options.arrayAction} array action is not a valid array action.`);
+		}
+
+		return {
+			previous,
+			next: clone,
+			entry: schemaEntry
+		};
+	}
+
+	private async _updateSchemaEntryValue(schemaEntry: SchemaEntry, value: SerializableValue, language: Language, guild: Guild | null): Promise<SerializableValue> {
+		const parsed = await schemaEntry.serializer.deserialize(value, schemaEntry, language, guild);
+		if (schemaEntry.filter !== null && schemaEntry.filter(this.client, parsed, schemaEntry, language)) throw language.get('SETTING_GATEWAY_INVALID_FILTERED_VALUE', schemaEntry, value);
+		return parsed;
 	}
 
 }
@@ -228,10 +384,36 @@ export interface SettingsFolderResetOptions {
 	guild?: GuildResolvable;
 }
 
+export interface SettingsFolderUpdateOptions extends SettingsFolderResetOptions {
+	arrayAction?: ArrayActions;
+	arrayIndex?: number | null;
+}
+
 export interface SettingsUpdateResult {
 	previous: SerializableValue;
 	next: SerializableValue;
 	entry: SchemaEntry;
 }
 
+export interface InternalSettingsFolderUpdateOptions {
+	onlyConfigurable: boolean;
+	guild: Guild | null;
+	arrayAction: ArrayActions;
+	arrayIndex: number | null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SettingsUpdateResults extends Array<SettingsUpdateResult> { }
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+export interface SettingsFolderJson extends Record<string, SettingsFolderJson | SerializableValue> { }
+
+export const enum ArrayActions {
+	Add = 'add',
+	Remove = 'remove',
+	Auto = 'auto',
+	Overwrite = 'overwrite'
+}
+
+type PathOrEntries = string | [string, SerializableValue][] | ReadonlyAnyObject;
+type ValueOrOptions = SerializableValue | SettingsFolderUpdateOptions;

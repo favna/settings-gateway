@@ -1,5 +1,5 @@
 import { Client, Provider } from 'klasa';
-import { Schema } from '../schema/Schema';
+import { Schema, SchemaJson } from '../schema/Schema';
 
 export class GatewayStorage {
 
@@ -21,7 +21,7 @@ export class GatewayStorage {
 	/**
 	 * Whether or not this gateway has been initialized.
 	 */
-	public ready: boolean = false;
+	public ready = false;
 
 	/**
 	 * The provider's name that manages this gateway.
@@ -53,6 +53,56 @@ export class GatewayStorage {
 		const { provider } = this;
 		if (provider === null) throw new Error(`The gateway ${this.name} could not find the provider ${this._provider}.`);
 		this.ready = true;
+
+		const errors = [];
+		for (const entry of this.schema.values(true)) {
+			// Assign Client to all Pieces for Serializers && Type Checking
+			entry.client = this.client;
+
+			Object.freeze(entry);
+
+			// Check if the entry is valid
+			try {
+				entry.check();
+			} catch (error) {
+				errors.push(error.message);
+			}
+		}
+
+		if (errors.length) throw new Error(`[SCHEMA] There is an error with your schema.\n${errors.join('\n')}`);
+
+		// TODO(kyranet): Finish this.
+		// this.schema.defaults._init(this.schema.defaults, this.schema);
+
+		// // Init the table
+		// const hasTable = await provider.hasTable(this.name);
+		// if (!hasTable) await provider.createTable(this.name);
+
+		// // Add any missing columns (NoSQL providers return empty array)
+		// const columns = await provider.getColumns(this.name);
+		// if (columns.length) {
+		// 	const promises = [];
+		// 	for (const [key, entry] of this.schema.paths) if (!columns.includes(key)) promises.push(provider.addColumn(this.name, entry));
+		// 	await Promise.all(promises);
+		// }
+	}
+
+	/**
+	 * Runs a synchronization task for the gateway.
+	 */
+	public async sync(): Promise<this> {
+		return this;
+	}
+
+	/**
+	 * Get A JSON object containing the schema and the options.
+	 */
+	public toJSON(): GatewayStorageJson {
+		return {
+			name: this.name,
+			provider: this._provider,
+			schema: this.schema.toJSON()
+		};
 	}
 
 }
@@ -60,4 +110,10 @@ export class GatewayStorage {
 export interface GatewayStorageOptions {
 	schema?: Schema;
 	provider?: string;
+}
+
+export interface GatewayStorageJson {
+	name: string;
+	provider: string;
+	schema: SchemaJson;
 }

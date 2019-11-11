@@ -63,7 +63,6 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 	public add(key: string, type: string, options: SchemaEntryOptions): this;
 	public add(key: string, callback: SchemaAddCallback): this;
 	public add(key: string, typeOrCallback: string | SchemaAddCallback, options?: SchemaEntryOptions): this {
-
 		let SchemaCtor: typeof SchemaEntry | typeof SchemaFolder;
 		let type: string;
 		let callback: SchemaAddCallback | null = null;
@@ -82,6 +81,7 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 			if (type === 'Folder') {
 				if (previous.type === 'Folder') {
 					// Call the callback with the pre-existent Folder
+					// eslint-disable-next-line callback-return
 					if (callback !== null) callback(previous as SchemaFolder);
 					return this;
 				}
@@ -101,6 +101,8 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 		}
 
 		const entry = new SchemaCtor(this, key, type, options);
+
+		// eslint-disable-next-line callback-return
 		if (callback !== null) callback(entry as SchemaFolder);
 		this.set(key, entry);
 		return this;
@@ -127,7 +129,7 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 		return value;
 	}
 
-	public resolve(settings: SettingsFolder, language: Language, guild: Guild | null) {
+	public resolve(settings: SettingsFolder, language: Language, guild: Guild | null): Promise<unknown[]> {
 		const promises = [];
 		for (const entry of this.values(true)) {
 			promises.push(entry.resolve(settings, language, guild));
@@ -198,5 +200,7 @@ export interface SchemaAddCallback {
 	(folder: SchemaFolder): unknown;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SchemaFolderJson extends Record<string, SchemaFolderJson | SchemaEntryJson> { }
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SchemaJson extends Record<string, SchemaFolderJson | SchemaEntryJson> { }
