@@ -1,4 +1,4 @@
-import { SerializableValue, ReadonlyAnyObject } from '../lib/types';
+import { SerializableValue, ReadonlyAnyObject } from '../types';
 import { Schema } from '../schema/Schema';
 import { Settings } from './Settings';
 import { Gateway } from '../gateway/Gateway';

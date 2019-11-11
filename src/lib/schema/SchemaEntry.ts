@@ -4,7 +4,7 @@ import { isNumber, isFunction } from '@klasa/utils';
 import { SettingsFolder } from '../settings/SettingsFolder';
 import { Guild } from 'discord.js';
 import { SchemaFolder } from './SchemaFolder';
-import { SerializableValue } from '../lib/types';
+import { SerializableValue } from '../types';
 
 export class SchemaEntry {
 

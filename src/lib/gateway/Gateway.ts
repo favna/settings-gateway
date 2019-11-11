@@ -16,7 +16,7 @@ export class Gateway extends GatewayStorage {
 	/**
 	 * The request handler that manages the synchronization queue.
 	 */
-	protected requestHandler = new RequestHandler(
+	public requestHandler = new RequestHandler(
 		(id: string): Promise<IdKeyed<string>> => {
 			const { provider } = this;
 			if (provider === null) throw new Error('Cannot run requests without a provider available.');
