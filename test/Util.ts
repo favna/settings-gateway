@@ -9,3 +9,9 @@ ava('client-extensions', (test): void => {
 	test.true(client.serializers instanceof Map);
 	test.true(client.gateways instanceof Map);
 });
+
+ava('provider', (test): void => {
+	const client = new MockClient();
+	const provider = client.providers.get('Mock');
+	test.not(typeof provider, 'undefined');
+});

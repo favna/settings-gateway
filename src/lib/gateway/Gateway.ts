@@ -6,6 +6,7 @@ import { Client } from '../types';
 
 export class Gateway extends GatewayStorage {
 
+	/* eslint-disable no-invalid-this */
 	/**
 	 * The cached entries for this Gateway or the external datastore to get the settings from.
 	 */
@@ -27,6 +28,7 @@ export class Gateway extends GatewayStorage {
 			return provider.getAll(this.name, ids) as Promise<IdKeyed<string>[]>;
 		}
 	);
+	/* eslint-enable no-invalid-this */
 
 	/**
 	 * Gets an entry from the cache or creates one if it does not exist

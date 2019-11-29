@@ -3,6 +3,8 @@ import { SettingsFolder } from '../settings/SettingsFolder';
 import { Language } from 'klasa';
 import { Guild } from 'discord.js';
 
+/* eslint-disable no-dupe-class-members */
+
 export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 
 	/**
@@ -58,7 +60,7 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 		return super.delete(key);
 	}
 
-	public add(key: string, type: string, options: SchemaEntryOptions): this;
+	public add(key: string, type: string, options?: SchemaEntryOptions): this;
 	public add(key: string, callback: SchemaAddCallback): this;
 	public add(key: string, typeOrCallback: string | SchemaAddCallback, options?: SchemaEntryOptions): this {
 		let SchemaCtor: typeof SchemaEntry | typeof SchemaFolder;

@@ -29,7 +29,7 @@ export class GatewayStorage {
 	 */
 	private readonly _provider: string;
 
-	public constructor(client: Client, name: string, options: GatewayStorageOptions) {
+	public constructor(client: Client, name: string, options: GatewayStorageOptions = {}) {
 		this.client = client;
 		this.name = name;
 		this.schema = options.schema || new Schema();

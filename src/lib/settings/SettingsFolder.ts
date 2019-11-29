@@ -9,6 +9,8 @@ import { GuildResolvable, Guild } from 'discord.js';
 import { isObject, objectToTuples, mergeObjects, makeObject } from '@klasa/utils';
 import arraysStrictEquals from '@klasa/utils/dist/lib/arrayStrictEquals';
 
+/* eslint-disable no-dupe-class-members */
+
 export class SettingsFolder extends Map<string, SerializableValue> {
 
 	/**

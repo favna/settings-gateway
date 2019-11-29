@@ -78,7 +78,7 @@ export class SchemaEntry {
 		this.client = null;
 		this.parent = parent;
 		this.key = key;
-		this.path = this.parent.path.length === 0 ? `${this.parent.path}.${this.key}` : this.key;
+		this.path = this.parent.path.length === 0 ? this.key : `${this.parent.path}.${this.key}`;
 		this.type = type.toLowerCase();
 		this.array = typeof options.array === 'undefined' ? typeof options.default === 'undefined' ? false : Array.isArray(options.default) : options.array;
 		this.default = typeof options.default === 'undefined' ? this.generateDefaultValue() : options.default;

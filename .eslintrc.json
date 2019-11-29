@@ -1,7 +1,3 @@
 {
-	"extends": "klasa/eslint-ts",
-	"rules": {
-		"no-dupe-class-members": 0,
-		"no-invalid-this": 0
-	}
+	"extends": "klasa/eslint-ts"
 }

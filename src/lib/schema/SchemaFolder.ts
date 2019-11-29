@@ -13,7 +13,7 @@ export class SchemaFolder extends Schema {
 	public readonly key: string;
 
 	public constructor(parent: Schema, key: string) {
-		super(parent.path === '' ? key : `${parent.path}.${key}`);
+		super(parent.path.length === 0 ? key : `${parent.path}.${key}`);
 		this.parent = parent;
 		this.key = key;
 	}
