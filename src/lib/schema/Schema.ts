@@ -1,7 +1,8 @@
 import { isFunction } from '@klasa/utils';
-import { SettingsFolder } from '../settings/SettingsFolder';
 import { Language } from 'klasa';
 import { Guild } from 'discord.js';
+import { SettingsFolder } from '../settings/SettingsFolder';
+import { fromEntries } from '../polyfills';
 
 /* eslint-disable no-dupe-class-members */
 
@@ -191,7 +192,7 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 	}
 
 	public toJSON(): SchemaJson {
-		return Object.fromEntries([...this.entries()].map(([key, value]) => [key, value.toJSON()]));
+		return fromEntries([...this.entries()].map(([key, value]) => [key, value.toJSON()]));
 	}
 
 }

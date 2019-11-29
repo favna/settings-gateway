@@ -1,6 +1,7 @@
-import Collection from '@discordjs/collection';
 import { GatewayStorage, GatewayStorageJson } from './GatewayStorage';
 import { Client } from '../types';
+import { fromEntries } from '../polyfills';
+import Collection from '@discordjs/collection';
 
 export class GatewayDriver extends Collection<string, GatewayStorage> {
 
@@ -40,7 +41,7 @@ export class GatewayDriver extends Collection<string, GatewayStorage> {
 	 * The gateway driver with all serialized gateways.
 	 */
 	public toJSON(): GatewayDriverJson {
-		return Object.fromEntries([...this.entries()].map(([key, value]) => [key, value.toJSON()]));
+		return fromEntries([...this.entries()].map(([key, value]) => [key, value.toJSON()]));
 	}
 
 }
