@@ -30,4 +30,6 @@ ava('gateway-storage-schema', (test): void => {
 	test.is(gateway.schema, schema);
 });
 
+// TODO(kyranet): Add tests for the client options overrides
 // TODO(kyranet): Add tests for all the methods
+// TODO(kyranet): Test SQL mode as well

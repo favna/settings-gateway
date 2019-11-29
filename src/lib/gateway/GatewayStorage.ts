@@ -72,20 +72,26 @@ export class GatewayStorage {
 
 		if (errors.length) throw new Error(`[SCHEMA] There is an error with your schema.\n${errors.join('\n')}`);
 
-		// TODO(kyranet): Finish this.
-		// this.schema.defaults._init(this.schema.defaults, this.schema);
+		// Initialize the defaults
+		// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+		// @ts-ignore 2445
+		this.schema.defaults._init(this.schema.defaults, this.schema);
 
-		// // Init the table
-		// const hasTable = await provider.hasTable(this.name);
-		// if (!hasTable) await provider.createTable(this.name);
+		// Init the table
+		const hasTable = await provider.hasTable(this.name);
+		if (!hasTable) await provider.createTable(this.name);
 
-		// // Add any missing columns (NoSQL providers return empty array)
-		// const columns = await provider.getColumns(this.name);
-		// if (columns.length) {
-		// 	const promises = [];
-		// 	for (const [key, entry] of this.schema.paths) if (!columns.includes(key)) promises.push(provider.addColumn(this.name, entry));
-		// 	await Promise.all(promises);
-		// }
+		// Add any missing columns (NoSQL providers return empty array)
+		const columns = await provider.getColumns(this.name);
+		if (columns.length) {
+			const promises = [];
+			for (const entry of this.schema.values(true)) {
+				if (!columns.includes(entry.path)) promises.push(provider.addColumn(this.name, entry));
+			}
+			await Promise.all(promises);
+		}
+
+		await this.sync();
 	}
 
 	/**

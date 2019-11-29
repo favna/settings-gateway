@@ -1,6 +1,5 @@
 import { Schema } from '../schema/Schema';
 import { Settings } from './Settings';
-import { Gateway } from '../gateway/Gateway';
 import { SchemaFolder } from '../schema/SchemaFolder';
 import { SchemaEntry } from '../schema/SchemaEntry';
 import { Language } from 'klasa';
@@ -33,15 +32,8 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 	 * The client that manages this instance.
 	 */
 	public get client(): Client {
-		return this.gateway.client;
-	}
-
-	/**
-	 * The gateway that manages this instance.
-	 */
-	public get gateway(): Gateway {
 		if (this.base === null) throw new Error('Cannot retrieve gateway from a non-ready settings instance.');
-		return this.base.gateway;
+		return this.base.gateway.client;
 	}
 
 	/**
@@ -302,6 +294,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		});
 	}
 
+	// eslint-disable-next-line complexity
 	private async _updateSchemaEntry(schemaEntry: SchemaEntry, key: string, value: SerializableValue, language: Language, options: InternalSettingsFolderUpdateOptions): Promise<SettingsUpdateResult> {
 		const previous = this.get(key) as SerializableValue;
 
