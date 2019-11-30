@@ -99,18 +99,27 @@ export class GatewayStorage {
 	}
 
 	private *_checkSchemaFolder(schema: Schema): IterableIterator<string> {
+		// Iterate over all the schema's values
 		for (const value of schema.values()) {
 			if (value instanceof Schema) {
+				// Check the child's children values
 				yield* this._checkSchemaFolder(value);
 			} else {
+				// Set the client and check if it is valid, afterwards freeze,
+				// otherwise delete it from its parent and yield error message
 				value.client = this.client;
 				try {
 					value.check();
+					Object.freeze(value);
 				} catch (error) {
+					// If errored, delete the key from its parent
+					value.parent.delete(value.key);
 					yield error.message;
 				}
 			}
 		}
+
+		// Set the schema as ready
 		schema.ready = true;
 	}
 
