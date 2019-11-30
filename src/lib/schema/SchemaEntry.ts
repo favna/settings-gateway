@@ -1,8 +1,6 @@
 import { Language } from 'klasa';
 import { Schema } from './Schema';
 import { isNumber, isFunction } from '@klasa/utils';
-import { SettingsFolder } from '../settings/SettingsFolder';
-import { Guild } from 'discord.js';
 import { SchemaFolder } from './SchemaFolder';
 import { Client, SerializableValue } from '../types';
 import { Serializer } from '../structures/Serializer';
@@ -117,22 +115,24 @@ export class SchemaEntry {
 		if (this.client === null) throw new Error('Cannot retrieve serializers from non-initialized SchemaEntry.');
 
 		// Check type
-		if (typeof this.type !== 'string') throw new TypeError(`[KEY] ${this.path} - Parameter type must be a string.`);
-		if (!this.client.serializers.has(this.type)) throw new TypeError(`[KEY] ${this.path} - ${this.type} is not a valid type.`);
+		if (typeof this.type !== 'string') throw new TypeError(`[KEY] ${this.path} - Parameter 'type' must be a string.`);
+		if (!this.client.serializers.has(this.type)) throw new TypeError(`[KEY] ${this.path} - '${this.type}' is not a valid type.`);
 
 		// Check array
-		if (typeof this.array !== 'boolean') throw new TypeError(`[KEY] ${this.path} - Parameter array must be a boolean.`);
+		if (typeof this.array !== 'boolean') throw new TypeError(`[KEY] ${this.path} - Parameter 'array' must be a boolean.`);
 
 		// Check configurable
-		if (typeof this.configurable !== 'boolean') throw new TypeError(`[KEY] ${this.path} - Parameter configurable must be a boolean.`);
+		if (typeof this.configurable !== 'boolean') throw new TypeError(`[KEY] ${this.path} - Parameter 'configurable' must be a boolean.`);
 
 		// Check limits
-		if (this.minimum !== null && !isNumber(this.minimum)) throw new TypeError(`[KEY] ${this.path} - Parameter min must be a number or null.`);
-		if (this.maximum !== null && !isNumber(this.maximum)) throw new TypeError(`[KEY] ${this.path} - Parameter max must be a number or null.`);
-		if (this.minimum !== null && this.maximum !== null && this.minimum > this.maximum) throw new TypeError(`[KEY] ${this.path} - Parameter min must contain a value lower than the parameter max.`);
+		if (this.minimum !== null && !isNumber(this.minimum)) throw new TypeError(`[KEY] ${this.path} - Parameter 'minimum' must be a number or null.`);
+		if (this.maximum !== null && !isNumber(this.maximum)) throw new TypeError(`[KEY] ${this.path} - Parameter 'maximum' must be a number or null.`);
+		if (this.minimum !== null && this.maximum !== null && this.minimum > this.maximum) {
+			throw new TypeError(`[KEY] ${this.path} - Parameter 'minimum' must contain a value lower than the parameter 'maximum'.`);
+		}
 
 		// Check filter
-		if (this.filter !== null && !isFunction(this.filter)) throw new TypeError(`[KEY] ${this.path} - Parameter filter must be a function`);
+		if (this.filter !== null && !isFunction(this.filter)) throw new TypeError(`[KEY] ${this.path} - Parameter 'filter' must be a function`);
 
 		// Check default
 		if (this.array) {
@@ -140,22 +140,6 @@ export class SchemaEntry {
 		} else if (this.default !== null) {
 			if (['boolean', 'string'].includes(this.type) && typeof this.default !== this.type) throw new TypeError(`[DEFAULT] ${this.path} - Default key must be a ${this.type}.`);
 		}
-	}
-
-	public async resolve(settings: SettingsFolder, language: Language, guild: Guild | null): Promise<unknown> {
-		const values = settings.get(this.path);
-		if (typeof values === 'undefined') return undefined;
-
-		if (!this.shouldResolve) return values;
-
-		const { serializer } = this;
-		if (serializer === null) throw new Error('The serializer was not available during the resolve.');
-		if (this.array) {
-			return (await Promise.all((values as unknown as readonly SerializableValue[]).map(value => serializer.deserialize(value, this, language, guild))))
-				.filter(value => value !== null);
-		}
-
-		return serializer.deserialize(values, this, language, guild);
 	}
 
 	public toJSON(): SchemaEntryJson {

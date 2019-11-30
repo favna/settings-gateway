@@ -1,6 +1,4 @@
 import { isFunction } from '@klasa/utils';
-import { Language } from 'klasa';
-import { Guild } from 'discord.js';
 import { SettingsFolder } from '../settings/SettingsFolder';
 import { fromEntries } from '../polyfills';
 
@@ -26,7 +24,7 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 	/**
 	 * Whether or not this instance is ready.
 	 */
-	private ready: boolean;
+	public ready: boolean;
 
 	/**
 	 * Constructs the schema
@@ -164,15 +162,6 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 		return value;
 	}
 
-	public resolve(settings: SettingsFolder, language: Language, guild: Guild | null): Promise<unknown[]> {
-		const promises = [];
-		for (const entry of this.values(true)) {
-			promises.push(entry.resolve(settings, language, guild));
-		}
-
-		return Promise.all(promises);
-	}
-
 	/**
 	 * Returns a new Iterator object that contains the keys for each element contained in this folder.
 	 * Identical to [Map.keys()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/keys)
@@ -190,11 +179,16 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 	}
 
 	/**
-	 * Returns a new Iterator object that contains the values for each element contained in this folder.
+	 * Returns a new Iterator object that contains the values for each element contained in this folder and children folders.
 	 * Identical to [Map.values()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/values)
 	 * @param recursive Whether the iteration should be recursive
 	 */
 	public values(recursive: true): IterableIterator<SchemaEntry>;
+	/**
+	 * Returns a new Iterator object that contains the values for each element contained in this folder.
+	 * Identical to [Map.values()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/values)
+	 * @param recursive Whether the iteration should be recursive
+	 */
 	public values(recursive?: false): IterableIterator<SchemaFolder | SchemaEntry>;
 	public *values(recursive = false): IterableIterator<SchemaFolder | SchemaEntry> {
 		if (recursive) {
@@ -208,11 +202,16 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 	}
 
 	/**
-	 * Returns a new Iterator object that contains the `[key, value]` pairs for each element contained in this folder.
+	 * Returns a new Iterator object that contains the `[key, value]` pairs for each element contained in this folder and children folders.
 	 * Identical to [Map.entries()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries)
 	 * @param recursive Whether the iteration should be recursive
 	 */
 	public entries(recursive: true): IterableIterator<[string, SchemaEntry]>;
+	/**
+	 * Returns a new Iterator object that contains the `[key, value]` pairs for each element contained in this folder.
+	 * Identical to [Map.entries()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map/entries)
+	 * @param recursive Whether the iteration should be recursive
+	 */
 	public entries(recursive?: false): IterableIterator<[string, SchemaFolder | SchemaEntry]>;
 	public *entries(recursive = false): IterableIterator<[string, SchemaFolder | SchemaEntry]> {
 		if (recursive) {
@@ -225,6 +224,9 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 		}
 	}
 
+	/**
+	 * Returns an object literal composed of all children serialized recursively.
+	 */
 	public toJSON(): SchemaJson {
 		return fromEntries([...this.entries()].map(([key, value]) => [key, value.toJSON()]));
 	}

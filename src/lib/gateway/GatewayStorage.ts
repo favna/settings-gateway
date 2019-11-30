@@ -55,21 +55,7 @@ export class GatewayStorage {
 		if (provider === null) throw new Error(`The gateway ${this.name} could not find the provider ${this._provider}.`);
 		this.ready = true;
 
-		const errors = [];
-		for (const entry of this.schema.values(true)) {
-			// Assign Client to all Pieces for Serializers && Type Checking
-			entry.client = this.client;
-
-			Object.freeze(entry);
-
-			// Check if the entry is valid
-			try {
-				entry.check();
-			} catch (error) {
-				errors.push(error.message);
-			}
-		}
-
+		const errors = [...this._checkSchemaFolder(this.schema)];
 		if (errors.length) throw new Error(`[SCHEMA] There is an error with your schema.\n${errors.join('\n')}`);
 
 		// Initialize the defaults
@@ -110,6 +96,22 @@ export class GatewayStorage {
 			provider: this._provider,
 			schema: this.schema.toJSON()
 		};
+	}
+
+	private *_checkSchemaFolder(schema: Schema): IterableIterator<string> {
+		for (const value of schema.values()) {
+			if (value instanceof Schema) {
+				yield* this._checkSchemaFolder(value);
+			} else {
+				value.client = this.client;
+				try {
+					value.check();
+				} catch (error) {
+					yield error.message;
+				}
+			}
+		}
+		schema.ready = true;
 	}
 
 }

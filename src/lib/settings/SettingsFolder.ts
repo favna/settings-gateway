@@ -79,7 +79,10 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		const language = guild === null ? this.base.gateway.client.languages.default : guild.language;
 		return Promise.all(paths.map(path => {
 			const entry = this.schema.get(path);
-			return typeof entry === 'undefined' ? undefined : entry.resolve(this, language, guild);
+			if (typeof entry === 'undefined') return undefined;
+			return entry.type === 'Folder' ?
+				this._resolveFolder(entry as SchemaFolder, language, guild) :
+				this._resolveEntry(entry as SchemaEntry, language, guild);
 		}));
 	}
 
@@ -297,6 +300,32 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			this.base.existenceStatus = SettingsExistenceStatus.Exists;
 			gateway.client.emit('settingsCreate', this.base, updateObject);
 		}
+	}
+
+	private async _resolveFolder(schemaFolder: SchemaFolder, language: Language, guild: Guild | null): Promise<unknown[]> {
+		const promises = [];
+		for (const entry of schemaFolder.values(true)) {
+			promises.push(this._resolveEntry(entry, language, guild));
+		}
+
+		return Promise.all(promises);
+	}
+
+	private async _resolveEntry(schemaEntry: SchemaEntry, language: Language, guild: Guild | null): Promise<unknown> {
+		const values = this.get(schemaEntry.path);
+		if (typeof values === 'undefined') return undefined;
+
+		if (!schemaEntry.shouldResolve) return values;
+
+		const { serializer } = schemaEntry;
+		if (serializer === null) throw new Error('The serializer was not available during the resolve.');
+		if (schemaEntry.array) {
+			return (await Promise.all((values as unknown as readonly SerializableValue[])
+				.map(value => serializer.deserialize(value, schemaEntry, language, guild))))
+				.filter(value => value !== null);
+		}
+
+		return serializer.deserialize(values, schemaEntry, language, guild);
 	}
 
 	private _resetSchemaFolder(changes: SettingsUpdateResults, schemaFolder: SchemaFolder, key: string, language: Language, onlyConfigurable: boolean): void {

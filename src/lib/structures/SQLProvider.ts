@@ -95,7 +95,7 @@ export abstract class SQLProvider extends Provider {
 	 * @param table The table to check against
 	 * @param entry The SchemaFolder or SchemaEntry added to the schema
 	 */
-	public abstract addColumn(_table: string, _entry: SchemaFolder | SchemaEntry): Promise<void>;
+	public abstract addColumn(table: string, entry: SchemaFolder | SchemaEntry): Promise<void>;
 
 	/**
 	 * The removeColumn method which inserts/creates a new table to the database.
@@ -103,27 +103,20 @@ export abstract class SQLProvider extends Provider {
 	 * @param table The table to check against
 	 * @param columns The column names to remove
 	 */
-	public abstract removeColumn(_table: string, _columns: readonly string[]): Promise<void>;
+	public abstract removeColumn(table: string, columns: readonly string[]): Promise<void>;
 
 	/**
 	 * The updateColumn method which alters the datatype from a column.
 	 * @param table The table to check against
 	 * @param entry The modified SchemaEntry
 	 */
-	public abstract updateColumn(_table: string, _entry: SchemaEntry): Promise<void>;
+	public abstract updateColumn(table: string, entry: SchemaEntry): Promise<void>;
 
 	/**
 	 * The getColumns method which gets the name of all columns.
 	 * @param table The table to check against
 	 */
-	public abstract getColumns(_table: string): Promise<string[]>;
-
-	/**
-	 * Shutdown method, this is called before the piece is unloaded.
-	 */
-	public async shutdown(): Promise<void> {
-		// Optionally defined in extension Classes
-	}
+	public abstract getColumns(table: string): Promise<string[]>;
 
 	/**
 	 * The query builder debug check for errors in the QueryBuilder, if one exists in the extended SQLProvider instance
