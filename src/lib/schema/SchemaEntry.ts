@@ -96,7 +96,7 @@ export class SchemaEntry {
 	}
 
 	public edit(options: SchemaEntryEditOptions = {}): this {
-		if (typeof options.type !== 'undefined') this.type = options.type;
+		if (typeof options.type === 'string') this.type = options.type.toLowerCase();
 		if (typeof options.array !== 'undefined') this.array = options.array;
 		if (typeof options.configurable !== 'undefined') this.configurable = options.configurable;
 		if (typeof options.default !== 'undefined') this.default = options.default;
@@ -183,7 +183,7 @@ export interface SchemaEntryOptions {
 	array?: boolean;
 	configurable?: boolean;
 	default?: SerializableValue;
-	filter?: SchemaEntryFilterFunction;
+	filter?: SchemaEntryFilterFunction | null;
 	inclusive?: boolean;
 	maximum?: number | null;
 	minimum?: number | null;

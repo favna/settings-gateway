@@ -2,6 +2,8 @@ import { Client } from 'klasa';
 import { ProviderStore, SerializerStore, GatewayDriver, Gateway, Client as InternalClient } from '../../dist';
 import { ClientOptions } from 'discord.js';
 import { MockProvider } from './MockProvider';
+import { MockStringSerializer } from './MockStringSerializer';
+import { MockNumberSerializer } from './MockNumberSerializer';
 
 export class MockClient extends Client {
 
@@ -22,6 +24,8 @@ export class MockClient extends Client {
 		this.registerStore(this.providers)
 			.registerStore(this.serializers);
 
+		this.serializers.set(new MockStringSerializer(this.serializers, ['lib', 'MockStringSerializer'], 'dist'));
+		this.serializers.set(new MockNumberSerializer(this.serializers, ['lib', 'MockNumberSerializer'], 'dist'));
 		this.providers.set(new MockProvider(this.providers, ['lib', 'MockProvider'], 'dist', { name: 'Mock' }));
 		this.gateways
 			.register(new Gateway(this as unknown as InternalClient, 'clientStorage', { provider: 'Mock' }))
