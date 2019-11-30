@@ -78,23 +78,9 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		const guild = this.client.guilds.resolve(this.base.target as GuildResolvable);
 		const language = guild === null ? this.base.gateway.client.languages.default : guild.language;
 		return Promise.all(paths.map(path => {
-			const entry = this.schema.get(this.relative(path));
+			const entry = this.schema.get(path);
 			return typeof entry === 'undefined' ? undefined : entry.resolve(this, language, guild);
 		}));
-	}
-
-	/**
-	 * Extract the relative path from an absolute one or an entry
-	 * @param pathOrPiece The path or entry to substract the path from
-	 */
-	public relative(pathOrEntry: string | SchemaFolder | SchemaEntry): string {
-		if (typeof pathOrEntry === 'string') {
-			return this.schema.path.length > 0 && pathOrEntry.startsWith(this.schema.path) ?
-				pathOrEntry.slice(this.schema.path.length + 1) :
-				pathOrEntry;
-		}
-
-		return this.relative(pathOrEntry.path);
 	}
 
 	public async reset(paths: string | ReadonlyAnyObject | readonly string[] = [...this.keys()], options: Readonly<SettingsFolderResetOptions> = {}): Promise<SettingsUpdateResults> {
@@ -116,21 +102,87 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 
 		const changes: SettingsUpdateResults = [];
 		for (const path of paths as readonly string[]) {
-			const key = this.relative(path);
-			const entry = schema.get(key);
+			const entry = schema.get(path);
 
 			// If the key does not exist, throw
 			if (typeof entry === 'undefined') throw language.get('SETTING_GATEWAY_KEY_NOEXT', path);
-			if (entry.type === 'Folder') this._resetSchemaFolder(changes, entry as SchemaFolder, key, language, onlyConfigurable);
-			else this._resetSchemaEntry(changes, entry as SchemaEntry, key, language, onlyConfigurable);
+			if (entry.type === 'Folder') this._resetSchemaFolder(changes, entry as SchemaFolder, path, language, onlyConfigurable);
+			else this._resetSchemaEntry(changes, entry as SchemaEntry, path, language, onlyConfigurable);
 		}
 
 		await this._save(changes);
 		return changes;
 	}
 
+	/**
+	 * Update a key from this settings folder.
+	 * @param path The path of the key to update
+	 * @param value The new value to validate and set
+	 * @param options The options for this update
+	 * @example
+	 * // Change the prefix to '$':
+	 * await message.guild.settings.update('prefix', '$');
+	 *
+	 * @example
+	 * // Add a new value to an array
+	 * await message.guild.settings.update('disabledCommands', 'ping', { arrayAction: 'add' });
+	 *
+	 * @example
+	 * // Remove a value from an array
+	 * await message.guild.settings.update('disabledCommands', 'ping', { arrayAction: 'remove' });
+	 *
+	 * @example
+	 * // Remove a value from an array of tuples ([[k1, v1], [k2, v2], ...])
+	 * const tags = message.guild.settings.get('tags');
+	 * const index = tags.findIndex(([tag]) => tag === 'foo');
+	 * await message.guild.settings.update('tags', null, { arrayIndex: index });
+	 */
 	public update(path: string, value: SerializableValue, options?: SettingsFolderUpdateOptions): Promise<SettingsUpdateResults>;
+	/**
+	 * Update one or more keys from this settings folder.
+	 * @param entries The key and value pairs to update
+	 * @param options The options for this update
+	 * @example
+	 * // Change the prefix to '$' and update disabledCommands adding/removing 'ping':
+	 * await message.guild.settings.update([['prefix', '$'], ['disabledCommands', 'ping']]);
+	 *
+	 * @example
+	 * // Add a new value to an array
+	 * await message.guild.settings.update([['disabledCommands', 'ping']], { arrayAction: 'add' });
+	 *
+	 * @example
+	 * // Remove a value from an array
+	 * await message.guild.settings.update([['disabledCommands', 'ping']], { arrayAction: 'remove' });
+	 *
+	 * @example
+	 * // Remove a value from an array of tuples ([[k1, v1], [k2, v2], ...])
+	 * const tags = message.guild.settings.get('tags');
+	 * const index = tags.findIndex(([tag]) => tag === 'foo');
+	 * await message.guild.settings.update([['tags', null]], { arrayIndex: index });
+	 */
 	public update(entries: [string, SerializableValue][], options?: SettingsFolderUpdateOptions): Promise<SettingsUpdateResults>;
+	/**
+	 * Update one or more keys using an object approach.
+	 * @param entries An object to flatten and update
+	 * @param options The options for this update
+	 * @example
+	 * // Change the prefix to '$' and update disabledCommands adding/removing 'ping':
+	 * await message.guild.settings.update({ prefix: '$' }, ['disabledCommands', 'ping']]);
+	 *
+	 * @example
+	 * // Add a new value to an array
+	 * await message.guild.settings.update({ disabledCommands: ['ping'] }, { arrayAction: 'add' });
+	 *
+	 * @example
+	 * // Remove a value from an array
+	 * await message.guild.settings.update({ disabledCommands: ['ping'] }, { arrayAction: 'remove' });
+	 *
+	 * @example
+	 * // Remove a value from an array of tuples ([[k1, v1], [k2, v2], ...])
+	 * const tags = message.guild.settings.get('tags');
+	 * const index = tags.findIndex(([tag]) => tag === 'foo');
+	 * await message.guild.settings.update({ tags: null }, { arrayIndex: index });
+	 */
 	public update(entries: ReadonlyAnyObject, options?: SettingsFolderUpdateOptions): Promise<SettingsUpdateResults>;
 	public async update(pathOrEntries: PathOrEntries, valueOrOptions?: ValueOrOptions, options: SettingsFolderUpdateOptions = {}): Promise<SettingsUpdateResults> {
 		if (this.base === null) {
@@ -162,8 +214,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 
 		const promises: Promise<SettingsUpdateResult>[] = [];
 		for (const [path, value] of entries) {
-			const key = this.relative(path);
-			const entry = schema.get(key);
+			const entry = schema.get(path);
 
 			// If the key does not exist, throw
 			if (typeof entry === 'undefined') throw language.get('SETTING_GATEWAY_KEY_NOEXT', path);
@@ -176,7 +227,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 					language.get('SETTING_GATEWAY_UNCONFIGURABLE_FOLDER');
 			}
 
-			promises.push(this._updateSchemaEntry(entry as SchemaEntry, key, value, language, internalOptions));
+			promises.push(this._updateSchemaEntry(entry as SchemaEntry, path, value, language, internalOptions));
 		}
 
 		const changes = await Promise.all(promises);
