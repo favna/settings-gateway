@@ -51,6 +51,18 @@ ava('gateway-acquire', (test): void => {
 	test.is(acquired.id, 'id');
 });
 
+ava('gateway-init-database-existence', async (test): Promise<void> => {
+	test.plan(2);
+
+	const gateway = new Gateway(createClient(), 'test', { provider: 'Mock' });
+	const provider = gateway.provider as Provider;
+
+	test.false(await provider.hasTable(gateway.name));
+
+	await gateway.init();
+	test.true(await provider.hasTable(gateway.name));
+});
+
 ava('gateway-reverse-no-data', (test): void => {
 	const client = createClient();
 	const gateway = client.gateways.get('users') as Gateway;
@@ -74,8 +86,6 @@ ava('gateway-reverse-data', (test): void => {
 	test.true(retrieved instanceof Settings);
 	test.is(retrieved.id, '339942739275677727');
 });
-
-// TODO(kyranet): Add database table check init
 
 ava('gateway-reverse-sync', async (test): Promise<void> => {
 	test.plan(6);

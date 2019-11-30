@@ -61,7 +61,34 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 		return super.delete(key);
 	}
 
+	/**
+	 * Add a new entry to this folder.
+	 * @param key The name for the key to add
+	 * @param type The datatype, will be lowercased in the instance
+	 * @param options The options for the entry
+	 * @example
+	 * // Create a schema with a key of experience:
+	 * new Schema()
+	 *     .add('experience', 'integer', { minimum: 0 });
+	 *
+	 * @example
+	 * // Modify the built-in user schema to add experience and level:
+	 * KlasaClient.defaultUserSchema
+	 *     .add('experience', 'integer', { minimum: 0 })
+	 *     .add('level', 'integer', { minimum: 0 });
+	 */
 	public add(key: string, type: string, options?: SchemaEntryOptions): this;
+	/**
+	 * Add a nested folder to this one.
+	 * @param key The name for the folder to add
+	 * @param callback The callback receiving a SchemaFolder instance as a parameter
+	 * @example
+	 * // Create a schema with a key of experience contained in a folder named social:
+	 * // Later access with `schema.get('social.experience');`.
+	 * new Schema()
+	 *     .add('social', social => social
+	 *         .add('experience', 'integer', { minimum: 0 }));
+	 */
 	public add(key: string, callback: SchemaAddCallback): this;
 	public add(key: string, typeOrCallback: string | SchemaAddCallback, options?: SchemaEntryOptions): this {
 		let SchemaCtor: typeof SchemaEntry | typeof SchemaFolder;
@@ -112,6 +139,13 @@ export class Schema extends Map<string, SchemaFolder | SchemaEntry> {
 	/**
 	 * Get a children entry from this schema.
 	 * @param path The key or path to get from this schema
+	 * @example
+	 * // Retrieve a key named experience that exists in this folder:
+	 * schema.get('experience');
+	 *
+	 * @example
+	 * // Retrieve a key named experience contained in a folder named social:
+	 * schema.get('social.experience');
 	 */
 	public get(path: string): SchemaFolder | SchemaEntry | undefined {
 		const index = path.indexOf('.');

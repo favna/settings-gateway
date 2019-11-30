@@ -39,10 +39,7 @@ export class Gateway extends GatewayStorage {
 	 * const gateway = this.client.gateways.get('members');
 	 *
 	 * // Acquire a settings instance belonging to a member
-	 * const settings = gateway.acquire(message.member);
-	 *
-	 * // Do something with settings
-	 * console.log(settings);
+	 * gateway.acquire(message.member);
 	 */
 	public acquire(target: IdKeyed<string>, id = target.id): Settings {
 		return this.get(id) || this.create(target, id);
