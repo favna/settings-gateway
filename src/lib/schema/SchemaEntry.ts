@@ -1,9 +1,8 @@
-import { Language } from 'klasa';
 import { Schema } from './Schema';
 import { isNumber, isFunction } from '@klasa/utils';
 import { SchemaFolder } from './SchemaFolder';
 import { Client, SerializableValue } from '../types';
-import { Serializer } from '../structures/Serializer';
+import { Serializer, SerializerUpdateContext } from '../structures/Serializer';
 
 export class SchemaEntry {
 
@@ -182,5 +181,5 @@ export interface SchemaEntryEditOptions extends SchemaEntryOptions {
 export interface SchemaEntryJson extends Required<Omit<SchemaEntryEditOptions, 'filter'>> { }
 
 export interface SchemaEntryFilterFunction {
-	(client: Client, value: unknown, schemaEntry: SchemaEntry, language: Language): boolean;
+	(client: Client, value: unknown, context: SerializerUpdateContext): boolean;
 }

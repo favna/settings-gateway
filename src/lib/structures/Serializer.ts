@@ -16,11 +16,16 @@ export abstract class Serializer extends AliasPiece {
 	/**
 	 * The deserialize method to be overwritten in actual Serializers.
 	 * @param data The data to deserialize
-	 * @param entry The SchemaEntry we are deserializing for.
-	 * @param language The language to use when responding.
-	 * @param guild The guild that will help deserialize
+	 * @param context The context in which this serializer is called
 	 */
-	public abstract deserialize(data: SerializableValue, entry: SchemaEntry, language: Language, guild: Guild | null): Promise<unknown>;
+	public abstract deserialize(data: SerializableValue, context: SerializerUpdateContext): Promise<unknown> | unknown;
+
+	/**
+	 * Resolve a value given directly from the {@link Settings#update} call.
+	 * @param data The data to resolve
+	 * @param context The context in which this serializer is called
+	 */
+	public abstract resolve(data: SerializableValue, context: SerializerUpdateContext): Promise<SerializableValue> | SerializableValue;
 
 	/**
 	 * The stringify method to be overwritten in actual Serializers
@@ -56,4 +61,11 @@ export abstract class Serializer extends AliasPiece {
 	*/
 	protected static regex: MentionRegex = constants.MENTION_REGEX;
 
+}
+
+export interface SerializerUpdateContext {
+	entry: SchemaEntry;
+	language: Language;
+	guild: Guild | null;
+	extra: unknown;
 }

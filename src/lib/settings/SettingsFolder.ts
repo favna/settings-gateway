@@ -4,9 +4,10 @@ import { SchemaFolder } from '../schema/SchemaFolder';
 import { SchemaEntry } from '../schema/SchemaEntry';
 import { Language } from 'klasa';
 import { Client, SerializableValue, ReadonlyAnyObject } from '../types';
-import { GuildResolvable, Guild } from 'discord.js';
+import { GuildResolvable } from 'discord.js';
 import { isObject, objectToTuples, mergeObjects, makeObject } from '@klasa/utils';
 import arraysStrictEquals from '@klasa/utils/dist/lib/arrayStrictEquals';
+import { SerializerUpdateContext } from '../structures/Serializer';
 
 /* eslint-disable no-dupe-class-members */
 
@@ -81,8 +82,18 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			const entry = this.schema.get(path);
 			if (typeof entry === 'undefined') return undefined;
 			return entry.type === 'Folder' ?
-				this._resolveFolder(entry as SchemaFolder, language, guild) :
-				this._resolveEntry(entry as SchemaEntry, language, guild);
+				this._resolveFolder({
+					folder: entry as SchemaFolder,
+					language,
+					guild,
+					extra: null
+				}) :
+				this._resolveEntry({
+					entry: entry as SchemaEntry,
+					language,
+					guild,
+					extra: null
+				});
 		}));
 	}
 
@@ -102,6 +113,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		const onlyConfigurable = typeof options.onlyConfigurable === 'undefined' ? false : options.onlyConfigurable;
 		const guild = client.guilds.resolve(typeof options.guild === 'undefined' ? this.base.target as GuildResolvable : options.guild);
 		const language = guild === null ? client.languages.default : guild.language;
+		const extra = options.extraContext;
 
 		const changes: SettingsUpdateResults = [];
 		for (const path of paths as readonly string[]) {
@@ -113,7 +125,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			else this._resetSchemaEntry(changes, entry as SchemaEntry, path, language, onlyConfigurable);
 		}
 
-		await this._save(changes);
+		await this._save({ changes, guild, language, extra });
 		return changes;
 	}
 
@@ -213,7 +225,8 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		const arrayIndex = typeof options.arrayIndex === 'undefined' ? null : options.arrayIndex;
 		const guild = client.guilds.resolve(typeof options.guild === 'undefined' ? this.base.target as GuildResolvable : options.guild);
 		const language = guild === null ? client.languages.default : guild.language;
-		const internalOptions: InternalSettingsFolderUpdateOptions = { arrayAction, arrayIndex, guild, onlyConfigurable };
+		const extra = options.extraContext;
+		const internalOptions: InternalSettingsFolderUpdateOptions = { arrayAction, arrayIndex, onlyConfigurable };
 
 		const promises: Promise<SettingsUpdateResult>[] = [];
 		for (const [path, value] of entries) {
@@ -230,11 +243,11 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 					language.get('SETTING_GATEWAY_UNCONFIGURABLE_FOLDER');
 			}
 
-			promises.push(this._updateSchemaEntry(entry as SchemaEntry, path, value, language, internalOptions));
+			promises.push(this._updateSchemaEntry(path, value, { entry: entry as SchemaEntry, language, guild, extra }, internalOptions));
 		}
 
 		const changes = await Promise.all(promises);
-		await this._save(changes);
+		await this._save({ changes, guild, language, extra });
 		return changes;
 	}
 
@@ -284,9 +297,9 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		}
 	}
 
-	protected async _save(changes: SettingsUpdateResults): Promise<void> {
+	protected async _save(context: SettingsUpdateContext): Promise<void> {
 		const updateObject = {};
-		for (const change of changes) mergeObjects(updateObject, makeObject(change.entry.path, change.next));
+		for (const change of context.changes) mergeObjects(updateObject, makeObject(change.entry.path, change.next));
 
 		if (this.base === null) throw new Error('Unreachable.');
 
@@ -294,38 +307,38 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		if (gateway.provider === null) throw new Error('Cannot update due to the gateway missing a reference to the provider.');
 		if (this.base.existenceStatus === SettingsExistenceStatus.Exists) {
 			await gateway.provider.update(gateway.name, id, updateObject);
-			gateway.client.emit('settingsUpdate', this.base, updateObject);
+			gateway.client.emit('settingsUpdate', this.base, updateObject, context);
 		} else {
 			await gateway.provider.update(gateway.name, id, updateObject);
 			this.base.existenceStatus = SettingsExistenceStatus.Exists;
-			gateway.client.emit('settingsCreate', this.base, updateObject);
+			gateway.client.emit('settingsCreate', this.base, updateObject, context);
 		}
 	}
 
-	private async _resolveFolder(schemaFolder: SchemaFolder, language: Language, guild: Guild | null): Promise<unknown[]> {
+	private async _resolveFolder(context: FolderUpdateContext): Promise<unknown[]> {
 		const promises = [];
-		for (const entry of schemaFolder.values(true)) {
-			promises.push(this._resolveEntry(entry, language, guild));
+		for (const entry of context.folder.values(true)) {
+			promises.push(this._resolveEntry({ entry, language: context.language, guild: context.guild, extra: context.extra }));
 		}
 
 		return Promise.all(promises);
 	}
 
-	private async _resolveEntry(schemaEntry: SchemaEntry, language: Language, guild: Guild | null): Promise<unknown> {
-		const values = this.get(schemaEntry.path);
+	private async _resolveEntry(context: SerializerUpdateContext): Promise<unknown> {
+		const values = this.get(context.entry.path);
 		if (typeof values === 'undefined') return undefined;
 
-		if (!schemaEntry.shouldResolve) return values;
+		if (!context.entry.shouldResolve) return values;
 
-		const { serializer } = schemaEntry;
+		const { serializer } = context.entry;
 		if (serializer === null) throw new Error('The serializer was not available during the resolve.');
-		if (schemaEntry.array) {
+		if (context.entry.array) {
 			return (await Promise.all((values as unknown as readonly SerializableValue[])
-				.map(value => serializer.deserialize(value, schemaEntry, language, guild))))
+				.map(value => serializer.deserialize(value, context))))
 				.filter(value => value !== null);
 		}
 
-		return serializer.deserialize(values, schemaEntry, language, guild);
+		return serializer.deserialize(values, context);
 	}
 
 	private _resetSchemaFolder(changes: SettingsUpdateResults, schemaFolder: SchemaFolder, key: string, language: Language, onlyConfigurable: boolean): void {
@@ -375,24 +388,24 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 	}
 
 	// eslint-disable-next-line complexity
-	private async _updateSchemaEntry(schemaEntry: SchemaEntry, key: string, value: SerializableValue, language: Language, options: InternalSettingsFolderUpdateOptions): Promise<SettingsUpdateResult> {
+	private async _updateSchemaEntry(key: string, value: SerializableValue, context: SerializerUpdateContext, options: InternalSettingsFolderUpdateOptions): Promise<SettingsUpdateResult> {
 		const previous = this.get(key) as SerializableValue;
 
 		// If null or undefined, return the default value instead
 		if (value === null || typeof value === 'undefined') {
-			return { previous, next: schemaEntry.default, entry: schemaEntry };
+			return { previous, next: context.entry.default, entry: context.entry };
 		}
 
-		if (!schemaEntry.array) {
-			value = await this._updateSchemaEntryValue(schemaEntry, value, language, options.guild) as SerializableValue;
-			return { previous, next: value, entry: schemaEntry };
+		if (!context.entry.array) {
+			value = await this._updateSchemaEntryValue(value, context) as SerializableValue;
+			return { previous, next: value, entry: context.entry };
 		}
 
-		if (Array.isArray(value)) value = await Promise.all(value.map(val => this._updateSchemaEntryValue(schemaEntry, val, language, options.guild)));
-		else value = [await this._updateSchemaEntryValue(schemaEntry, value, language, options.guild)];
+		if (Array.isArray(value)) value = await Promise.all(value.map(val => this._updateSchemaEntryValue(val, context)));
+		else value = [await this._updateSchemaEntryValue(value, context)];
 
 		if (options.arrayAction === ArrayActions.Overwrite) {
-			return { previous, next: value, entry: schemaEntry };
+			return { previous, next: value, entry: context.entry };
 		}
 
 		const next = value as readonly SerializableValue[];
@@ -419,14 +432,14 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		} else if (options.arrayAction === ArrayActions.Add) {
 			// Array action add must add values, throw on existent
 			for (const val of next) {
-				if (clone.includes(val)) throw new Error(`The value ${val} for the key ${schemaEntry.path} already exists.`);
+				if (clone.includes(val)) throw new Error(`The value ${val} for the key ${context.entry.path} already exists.`);
 				clone.push(val);
 			}
 		} else if (options.arrayAction === ArrayActions.Remove) {
 			// Array action remove must add values, throw on non-existent
 			for (const val of next) {
 				const index = clone.indexOf(val);
-				if (index === -1) throw new Error(`The value ${val} for the key ${schemaEntry.path} does not exist.`);
+				if (index === -1) throw new Error(`The value ${val} for the key ${context.entry.path} does not exist.`);
 				clone.splice(index, 1);
 			}
 		} else {
@@ -436,15 +449,15 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		return {
 			previous,
 			next: clone,
-			entry: schemaEntry
+			entry: context.entry
 		};
 	}
 
-	private async _updateSchemaEntryValue(schemaEntry: SchemaEntry, value: SerializableValue, language: Language, guild: Guild | null): Promise<unknown> {
-		const { serializer } = schemaEntry;
+	private async _updateSchemaEntryValue(value: SerializableValue, context: SerializerUpdateContext): Promise<unknown> {
+		const { serializer } = context.entry;
 		if (serializer === null) throw new Error('The serializer was not available during the update.');
-		const parsed = await serializer.deserialize(value, schemaEntry, language, guild);
-		if (schemaEntry.filter !== null && schemaEntry.filter(this.client, parsed, schemaEntry, language)) throw language.get('SETTING_GATEWAY_INVALID_FILTERED_VALUE', schemaEntry, value);
+		const parsed = await serializer.deserialize(value, context);
+		if (context.entry.filter !== null && context.entry.filter(this.client, parsed, context)) throw context.language.get('SETTING_GATEWAY_INVALID_FILTERED_VALUE', context.entry, value);
 		return parsed;
 	}
 
@@ -459,11 +472,20 @@ export const enum SettingsExistenceStatus {
 export interface SettingsFolderResetOptions {
 	onlyConfigurable?: boolean;
 	guild?: GuildResolvable;
+	extraContext?: unknown;
 }
 
 export interface SettingsFolderUpdateOptions extends SettingsFolderResetOptions {
 	arrayAction?: ArrayActions;
 	arrayIndex?: number | null;
+}
+
+export interface FolderUpdateContext extends Omit<SerializerUpdateContext, 'entry'> {
+	folder: SchemaFolder;
+}
+
+export interface SettingsUpdateContext extends Omit<SerializerUpdateContext, 'entry'> {
+	changes: SettingsUpdateResults;
 }
 
 export interface SettingsUpdateResult {
@@ -474,7 +496,6 @@ export interface SettingsUpdateResult {
 
 export interface InternalSettingsFolderUpdateOptions {
 	onlyConfigurable: boolean;
-	guild: Guild | null;
 	arrayAction: ArrayActions;
 	arrayIndex: number | null;
 }

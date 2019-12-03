@@ -1,5 +1,4 @@
-import { Serializer, SerializableValue, SchemaEntry, SerializerStore } from '../../dist';
-import { Language } from 'klasa';
+import { Serializer, SerializableValue, SerializerStore, SerializerUpdateContext } from '../../dist';
 
 export class MockNumberSerializer extends Serializer {
 
@@ -7,7 +6,11 @@ export class MockNumberSerializer extends Serializer {
 		super(store, file, directory, { name: 'number', aliases: ['integer', 'float'] });
 	}
 
-	public async deserialize(data: SerializableValue, entry: SchemaEntry, language: Language): Promise<number | null> {
+	public deserialize(data: SerializableValue): number {
+		return Number(data);
+	}
+
+	public resolve(data: SerializableValue, { entry, language }: SerializerUpdateContext): number | null {
 		let parsed: number;
 		switch (entry.type) {
 			case 'integer':

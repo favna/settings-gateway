@@ -1,5 +1,4 @@
-import { Serializer, SerializableValue, SchemaEntry, SerializerStore } from '../../dist';
-import { Language } from 'klasa';
+import { Serializer, SerializableValue, SerializerStore, SerializerUpdateContext } from '../../dist';
 
 export class MockStringSerializer extends Serializer {
 
@@ -7,7 +6,11 @@ export class MockStringSerializer extends Serializer {
 		super(store, file, directory, { name: 'string' });
 	}
 
-	public async deserialize(data: SerializableValue, entry: SchemaEntry, language: Language): Promise<string | null> {
+	public deserialize(data: SerializableValue): string {
+		return String(data);
+	}
+
+	public resolve(data: SerializableValue, { entry, language }: SerializerUpdateContext): string | null {
 		const parsed = String(data);
 		return Serializer.minOrMax(parsed.length, entry, language) ? parsed : null;
 	}
