@@ -10,6 +10,7 @@ export class Settings extends SettingsFolder {
 
 	public constructor(gateway: Gateway, target: unknown, id: string) {
 		super(gateway.schema);
+		this.base = this;
 		this.id = id;
 		this.gateway = gateway;
 		this.target = target;
