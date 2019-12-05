@@ -62,7 +62,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 	 * const [x, y] = message.guild.settings.pluck('x', 'y');
 	 * console.log(x, y);
 	 */
-	public pluck(...paths: readonly string[]): SerializableValue[] {
+	public pluck(...paths: readonly string[]): (SerializableValue | undefined)[] {
 		return paths.map(path => {
 			const value = this.get(path);
 			return value instanceof SettingsFolder ? value.toJSON() : value;
@@ -309,7 +309,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			await gateway.provider.update(gateway.name, id, updateObject);
 			gateway.client.emit('settingsUpdate', this.base, updateObject, context);
 		} else {
-			await gateway.provider.update(gateway.name, id, updateObject);
+			await gateway.provider.create(gateway.name, id, updateObject);
 			this.base.existenceStatus = SettingsExistenceStatus.Exists;
 			gateway.client.emit('settingsCreate', this.base, updateObject, context);
 		}
