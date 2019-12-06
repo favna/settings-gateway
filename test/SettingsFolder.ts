@@ -156,25 +156,6 @@ ava('settingsfolder-tojson', async (test): Promise<void> => {
 	test.deepEqual(settings.toJSON(), { count: 123, messages: { hello: null } });
 });
 
-ava('snapshot testing', async (test) => {
-	const { settings, gateway, provider } = await createSettings('2');
-
-	await provider.create(gateway.name, '2', { count: 65 });
-	await settings.sync();
-
-	// Settings
-	test.snapshot(settings.clone.toString());
-	test.snapshot(settings.sync.toString());
-	test.snapshot(settings.destroy.toString());
-	test.snapshot(settings.client.toString());
-	test.snapshot(settings.get.toString());
-	test.snapshot(settings.pluck.toString());
-	test.snapshot(settings.resolve.toString());
-	test.snapshot(settings.reset.toString());
-	test.snapshot(settings.update.toString());
-	test.snapshot(settings.toJSON.toString());
-});
-
 interface PreparedContext {
 	client: Client;
 	gateway: Gateway;
