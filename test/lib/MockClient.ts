@@ -5,6 +5,7 @@ import { MockProvider } from './MockProvider';
 import { MockStringSerializer } from './MockStringSerializer';
 import { MockNumberSerializer } from './MockNumberSerializer';
 import { MockObjectSerializer } from './MockObjectSerializer';
+import { MockLanguage } from './MockLanguage';
 
 export class MockClient extends Client {
 
@@ -29,6 +30,7 @@ export class MockClient extends Client {
 		this.serializers.set(new MockNumberSerializer(this.serializers, ['lib', 'MockNumberSerializer'], 'dist'));
 		this.serializers.set(new MockObjectSerializer(this.serializers, ['lib', 'MockObjectSerializer'], 'dist'));
 		this.providers.set(new MockProvider(this.providers, ['lib', 'MockProvider'], 'dist', { name: 'Mock' }));
+		this.languages.set(new MockLanguage(this.languages, ['lib', 'MockLanguage'], 'dist'));
 		this.gateways
 			.register(new Gateway(this as unknown as InternalClient, 'clientStorage', { provider: 'Mock' }))
 			.register(new Gateway(this as unknown as InternalClient, 'guilds', { provider: 'Mock' }))

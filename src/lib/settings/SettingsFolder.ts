@@ -107,6 +107,10 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			throw new Error('Cannot reset keys from a pending to synchronize settings instance. Perhaps you want to call `sync()` first.');
 		}
 
+		if (this.base.existenceStatus === SettingsExistenceStatus.NotExists) {
+			return [];
+		}
+
 		if (typeof paths === 'string') paths = [paths];
 		else if (isObject(paths)) paths = objectToTuples(paths as Record<string, unknown>).map(entries => entries[0]);
 
@@ -126,7 +130,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			else this._resetSchemaEntry(changes, entry as SchemaEntry, path, language, onlyConfigurable);
 		}
 
-		await this._save({ changes, guild, language, extra });
+		if (changes.length !== 0) await this._save({ changes, guild, language, extra });
 		return changes;
 	}
 
@@ -240,7 +244,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 					[...(entry as SchemaFolder).values()].filter(val => val.type !== 'Folder').map(val => val.key) :
 					[...(entry as SchemaFolder).keys()];
 				throw keys.length > 0 ?
-					language.get('SETTING_GATEWAY_CHOOSE_KEY', keys.join('\', \'')) :
+					language.get('SETTING_GATEWAY_CHOOSE_KEY', keys) :
 					language.get('SETTING_GATEWAY_UNCONFIGURABLE_FOLDER');
 			}
 
@@ -248,7 +252,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		}
 
 		const changes = await Promise.all(promises);
-		await this._save({ changes, guild, language, extra });
+		if (changes.length !== 0) await this._save({ changes, guild, language, extra });
 		return changes;
 	}
 
@@ -308,10 +312,12 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		if (gateway.provider === null) throw new Error('Cannot update due to the gateway missing a reference to the provider.');
 		if (this.base.existenceStatus === SettingsExistenceStatus.Exists) {
 			await gateway.provider.update(gateway.name, id, updateObject);
+			this._patch(updateObject);
 			gateway.client.emit('settingsUpdate', this.base, updateObject, context);
 		} else {
 			await gateway.provider.create(gateway.name, id, updateObject);
 			this.base.existenceStatus = SettingsExistenceStatus.Exists;
+			this._patch(updateObject);
 			gateway.client.emit('settingsCreate', this.base, updateObject, context);
 		}
 	}
@@ -361,6 +367,8 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		let skipped = 0;
 		let processed = 0;
 
+		const localPathPrefix = schemaFolder.path === '' ? '' : this.schema.path === '' ? `${schemaFolder.path}.` : `${schemaFolder.path.slice(this.schema.path.length + 1)}.`;
+
 		// Recurse to all sub-pieces
 		for (const entry of schemaFolder.values(true)) {
 			if (onlyConfigurable && !entry.configurable) {
@@ -368,7 +376,8 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 				continue;
 			}
 
-			const previous = this.get(entry.path.slice(key.length + 1)) as SerializableValue;
+			const localPath = entry.path.slice(key.length + 1);
+			const previous = this.get(localPathPrefix + localPath) as SerializableValue;
 			const next = entry.default;
 			const equals = entry.array ?
 				arraysStrictEquals(previous as unknown as readonly SerializableValue[], next as readonly SerializableValue[]) :
@@ -395,11 +404,20 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			throw language.get('SETTING_GATEWAY_UNCONFIGURABLE_FOLDER');
 		}
 
-		changes.push({
-			previous: this.get(key) as SerializableValue,
-			next: schemaEntry.default,
-			entry: schemaEntry
-		});
+		const previous = this.get(key) as SerializableValue;
+		const next = schemaEntry.default;
+
+		const equals = schemaEntry.array ?
+			arraysStrictEquals(previous as unknown as readonly SerializableValue[], next as readonly SerializableValue[]) :
+			previous === next;
+
+		if (!equals) {
+			changes.push({
+				previous,
+				next,
+				entry: schemaEntry
+			});
+		}
 	}
 
 	// eslint-disable-next-line complexity
