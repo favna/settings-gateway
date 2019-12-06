@@ -3,7 +3,7 @@ import { ProviderStore } from './structures/ProviderStore';
 import { SerializerStore } from './structures/SerializerStore';
 import { GatewayDriver } from './gateway/GatewayDriver';
 
-export type AnyObject = {} | Record<string | number | symbol, unknown>;
+export type AnyObject = {} | Record<PropertyKey, unknown>;
 export type ReadonlyAnyObject = Readonly<AnyObject>;
 export type SerializableValue = boolean | number | string | AnyObject | SerializableValue[] | null;
 

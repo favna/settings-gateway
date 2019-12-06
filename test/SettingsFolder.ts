@@ -1,5 +1,5 @@
 import ava from 'ava';
-import { Schema, SettingsFolder, Gateway, Provider, Client, Settings, SchemaEntry } from '../dist';
+import { Schema, SettingsFolder, Gateway, Provider, Client, Settings, SchemaEntry, AnyObject, SettingsUpdateContext } from '../dist';
 import { createClient } from './lib/MockClient';
 
 async function createSettings(id: string): Promise<PreparedContextSettings> {
@@ -13,7 +13,8 @@ async function createSettings(id: string): Promise<PreparedContextSettings> {
 async function createContext(): Promise<PreparedContext> {
 	const client = createClient();
 	const schema = new Schema()
-		.add('count', 'number')
+		.add('uses', 'number', { array: true })
+		.add('count', 'number', { configurable: false })
 		.add('messages', folder => folder
 			.add('hello', 'object'));
 	const gateway = new Gateway(client, 'settings-test', {
@@ -51,12 +52,13 @@ ava('SettingsFolder#{base,client}', async (test): Promise<void> => {
 });
 
 ava('SettingsFolder#get', async (test): Promise<void> => {
-	test.plan(8);
+	test.plan(9);
 
-	const { settings } = await createSettings('1');
+	const { settings, schema } = await createSettings('1');
 
 	// Retrieve key from root folder
-	test.is(settings.size, 2);
+	test.is(settings.size, 3);
+	test.is(settings.get('uses'), (schema.get('uses') as SchemaEntry).default);
 	test.is(settings.get('count'), null);
 	test.is(settings.get('messages.hello'), null);
 
@@ -303,6 +305,93 @@ ava('SettingsFolder#reset (Inner-Folder | Exists)', async (test): Promise<void> 
 	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, messages: { hello: null } });
 });
 
+ava('SettingsFolder#reset (Array | Empty)', async (test): Promise<void> => {
+	test.plan(3);
+
+	const { settings, gateway, provider } = await createSettings('14');
+	await provider.create(gateway.name, settings.id, {});
+	await settings.sync();
+
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id });
+	const results = await settings.reset('uses');
+	test.is(results.length, 0);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id });
+});
+
+ava('SettingsFolder#reset (Array | Filled)', async (test): Promise<void> => {
+	test.plan(6);
+
+	const { settings, gateway, schema, provider } = await createSettings('14');
+	await provider.create(gateway.name, settings.id, { uses: [1, 2, 4] });
+	await settings.sync();
+
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2, 4] });
+	const results = await settings.reset('uses');
+	test.is(results.length, 1);
+	test.deepEqual(results[0].previous, [1, 2, 4]);
+	test.is(results[0].next, (schema.get('uses') as SchemaEntry).default);
+	test.is(results[0].entry, schema.get('uses') as SchemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [] });
+});
+
+ava('SettingsFolder#reset (Events | Not Exists)', async (test): Promise<void> => {
+	test.plan(1);
+
+	const { client, settings } = await createSettings('3');
+	await settings.sync();
+
+	client.once('settingsCreate', () => test.fail());
+	client.once('settingsUpdate', () => test.fail());
+	test.deepEqual(await settings.reset('count'), []);
+});
+
+ava('SettingsFolder#reset (Events | Exists)', async (test): Promise<void> => {
+	test.plan(9);
+
+	const { client, settings, gateway, provider, schema } = await createSettings('3');
+	await provider.create(gateway.name, settings.id, { count: 64 });
+	await settings.sync();
+
+	const schemaEntry = schema.get('count') as SchemaEntry;
+	client.once('settingsCreate', () => test.fail());
+	client.once('settingsUpdate', (emittedSettings: Settings, changes: AnyObject, context: SettingsUpdateContext) => {
+		test.is(emittedSettings, settings);
+		test.deepEqual(changes, { count: null });
+		test.is(context.changes.length, 1);
+		test.is(context.changes[0].entry, schemaEntry);
+		test.is(context.changes[0].previous, 64);
+		test.is(context.changes[0].next, schemaEntry.default);
+		test.is(context.extraContext, undefined);
+		test.is(context.guild, null);
+		test.is(context.language, client.languages.get('en-US'));
+	});
+	await settings.reset('count');
+});
+
+ava('SettingsFolder#reset (Events + Extra | Exists)', async (test): Promise<void> => {
+	test.plan(9);
+
+	const { client, settings, gateway, provider, schema } = await createSettings('3');
+	await provider.create(gateway.name, settings.id, { count: 64 });
+	await settings.sync();
+
+	const extraContext = Symbol('Hello!');
+	const schemaEntry = schema.get('count') as SchemaEntry;
+	client.once('settingsCreate', () => test.fail());
+	client.once('settingsUpdate', (emittedSettings: Settings, changes: AnyObject, context: SettingsUpdateContext) => {
+		test.is(emittedSettings, settings);
+		test.deepEqual(changes, { count: null });
+		test.is(context.changes.length, 1);
+		test.is(context.changes[0].entry, schemaEntry);
+		test.is(context.changes[0].previous, 64);
+		test.is(context.changes[0].next, schemaEntry.default);
+		test.is(context.extraContext, extraContext);
+		test.is(context.guild, null);
+		test.is(context.language, client.languages.get('en-US'));
+	});
+	await settings.reset('count', { extraContext });
+});
+
 ava('SettingsFolder#reset (Uninitialized)', async (test): Promise<void> => {
 	test.plan(1);
 
@@ -331,6 +420,20 @@ ava('SettingsFolder#reset (Invalid Key)', async (test): Promise<void> => {
 	}
 });
 
+ava('SettingsFolder#reset (Unconfigurable)', async (test): Promise<void> => {
+	test.plan(1);
+
+	const { settings, gateway, provider } = await createSettings('17');
+	await provider.create(gateway.name, settings.id, { count: 64 });
+	await settings.sync();
+	try {
+		await settings.reset('count', { onlyConfigurable: true });
+		test.fail('This Settings#reset call must error.');
+	} catch (error) {
+		test.is(error, '[SETTING_GATEWAY_UNCONFIGURABLE_FOLDER]');
+	}
+});
+
 ava('SettingsFolder#update-single', async (test): Promise<void> => {
 	test.pass();
 });
@@ -349,13 +452,13 @@ ava('SettingsFolder#toJSON', async (test): Promise<void> => {
 	const { settings, gateway, provider } = await createSettings('9');
 
 	// Non-synced entry should have schema defaults
-	test.deepEqual(settings.toJSON(), { count: null, messages: { hello: null } });
+	test.deepEqual(settings.toJSON(), { uses: [], count: null, messages: { hello: null } });
 
 	await provider.create(gateway.name, '9', { count: 123 });
 	await settings.sync();
 
 	// Synced entry should use synced values or schema defaults
-	test.deepEqual(settings.toJSON(), { count: 123, messages: { hello: null } });
+	test.deepEqual(settings.toJSON(), { uses: [], count: 123, messages: { hello: null } });
 });
 
 interface PreparedContext {

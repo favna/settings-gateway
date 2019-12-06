@@ -3,7 +3,7 @@ import { Settings } from './Settings';
 import { SchemaFolder } from '../schema/SchemaFolder';
 import { SchemaEntry } from '../schema/SchemaEntry';
 import { Language } from 'klasa';
-import { Client, SerializableValue, ReadonlyAnyObject } from '../types';
+import { Client, SerializableValue, ReadonlyAnyObject, AnyObject } from '../types';
 import { GuildResolvable } from 'discord.js';
 import { isObject, objectToTuples, mergeObjects, makeObject } from '@klasa/utils';
 import arraysStrictEquals from '@klasa/utils/dist/lib/arrayStrictEquals';
@@ -87,13 +87,13 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 					folder: entry as SchemaFolder,
 					language,
 					guild,
-					extra: null
+					extraContext: null
 				}) :
 				this._resolveEntry({
 					entry: entry as SchemaEntry,
 					language,
 					guild,
-					extra: null
+					extraContext: null
 				});
 		}));
 	}
@@ -130,7 +130,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			else this._resetSchemaEntry(changes, entry as SchemaEntry, path, language, onlyConfigurable);
 		}
 
-		if (changes.length !== 0) await this._save({ changes, guild, language, extra });
+		if (changes.length !== 0) await this._save({ changes, guild, language, extraContext: extra });
 		return changes;
 	}
 
@@ -248,11 +248,11 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 					language.get('SETTING_GATEWAY_UNCONFIGURABLE_FOLDER');
 			}
 
-			promises.push(this._updateSchemaEntry(path, value, { entry: entry as SchemaEntry, language, guild, extra }, internalOptions));
+			promises.push(this._updateSchemaEntry(path, value, { entry: entry as SchemaEntry, language, guild, extraContext: extra }, internalOptions));
 		}
 
 		const changes = await Promise.all(promises);
-		if (changes.length !== 0) await this._save({ changes, guild, language, extra });
+		if (changes.length !== 0) await this._save({ changes, guild, language, extraContext: extra });
 		return changes;
 	}
 
@@ -303,7 +303,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 	}
 
 	protected async _save(context: SettingsUpdateContext): Promise<void> {
-		const updateObject = {};
+		const updateObject: AnyObject = {};
 		for (const change of context.changes) mergeObjects(updateObject, makeObject(change.entry.path, change.next));
 
 		if (this.base === null) throw new Error('Unreachable.');
@@ -330,14 +330,14 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 					folder: entry as SchemaFolder,
 					language: context.language,
 					guild: context.guild,
-					extra: context.extra
+					extraContext: context.extraContext
 				}).then(value => [entry.key, value]));
 			} else {
 				promises.push(this._resolveEntry({
 					entry: entry as SchemaEntry,
 					language: context.language,
 					guild: context.guild,
-					extra: context.extra
+					extraContext: context.extraContext
 				}).then(value => [entry.key, value]));
 			}
 		}

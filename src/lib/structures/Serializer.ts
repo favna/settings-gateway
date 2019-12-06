@@ -67,5 +67,5 @@ export interface SerializerUpdateContext {
 	entry: SchemaEntry;
 	language: Language;
 	guild: Guild | null;
-	extra: unknown;
+	extraContext: unknown;
 }
