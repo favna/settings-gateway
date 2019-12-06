@@ -8,6 +8,7 @@ import { GuildResolvable } from 'discord.js';
 import { isObject, objectToTuples, mergeObjects, makeObject } from '@klasa/utils';
 import arraysStrictEquals from '@klasa/utils/dist/lib/arrayStrictEquals';
 import { SerializerUpdateContext } from '../structures/Serializer';
+import { fromEntries } from '../polyfills';
 
 /* eslint-disable no-dupe-class-members */
 
@@ -315,13 +316,27 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		}
 	}
 
-	private async _resolveFolder(context: FolderUpdateContext): Promise<unknown[]> {
-		const promises = [];
-		for (const entry of context.folder.values(true)) {
-			promises.push(this._resolveEntry({ entry, language: context.language, guild: context.guild, extra: context.extra }));
+	private async _resolveFolder(context: FolderUpdateContext): Promise<object> {
+		const promises: Promise<[string, unknown]>[] = [];
+		for (const entry of context.folder.values()) {
+			if (entry.type === 'Folder') {
+				promises.push(this._resolveFolder({
+					folder: entry as SchemaFolder,
+					language: context.language,
+					guild: context.guild,
+					extra: context.extra
+				}).then(value => [entry.key, value]));
+			} else {
+				promises.push(this._resolveEntry({
+					entry: entry as SchemaEntry,
+					language: context.language,
+					guild: context.guild,
+					extra: context.extra
+				}).then(value => [entry.key, value]));
+			}
 		}
 
-		return Promise.all(promises);
+		return fromEntries(await Promise.all(promises));
 	}
 
 	private async _resolveEntry(context: SerializerUpdateContext): Promise<unknown> {
@@ -334,11 +349,11 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		if (serializer === null) throw new Error('The serializer was not available during the resolve.');
 		if (context.entry.array) {
 			return (await Promise.all((values as unknown as readonly SerializableValue[])
-				.map(value => serializer.deserialize(value, context))))
+				.map(value => serializer.resolve(value, context))))
 				.filter(value => value !== null);
 		}
 
-		return serializer.deserialize(values, context);
+		return serializer.resolve(values, context);
 	}
 
 	private _resetSchemaFolder(changes: SettingsUpdateResults, schemaFolder: SchemaFolder, key: string, language: Language, onlyConfigurable: boolean): void {

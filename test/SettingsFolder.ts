@@ -2,12 +2,20 @@ import ava from 'ava';
 import { Schema, SettingsFolder, Gateway, Provider, Client, Settings } from '../dist';
 import { createClient } from './lib/MockClient';
 
+async function createSettings(id: string): Promise<PreparedContextSettings> {
+	const context = await createContext();
+	return {
+		...context,
+		settings: new Settings(context.gateway, { id }, id)
+	};
+}
+
 async function createContext(): Promise<PreparedContext> {
 	const client = createClient();
 	const schema = new Schema()
 		.add('count', 'number')
 		.add('messages', folder => folder
-			.add('hello', 'string'));
+			.add('hello', 'object'));
 	const gateway = new Gateway(client, 'settings-test', {
 		provider: 'Mock',
 		schema
@@ -35,9 +43,7 @@ ava('settingsfolder-basic', async (test): Promise<void> => {
 ava('settingsfolder-base-client', async (test): Promise<void> => {
 	test.plan(2);
 
-	const { gateway } = await createContext();
-	const id = '0';
-	const settings = new Settings(gateway, { id }, id);
+	const { settings } = await createSettings('0');
 	const settingsFolder = settings.get('messages') as SettingsFolder;
 
 	test.notThrows(() => settingsFolder.client);
@@ -47,10 +53,7 @@ ava('settingsfolder-base-client', async (test): Promise<void> => {
 ava('settingsfolder-get', async (test): Promise<void> => {
 	test.plan(8);
 
-	const { gateway } = await createContext();
-
-	const id = '1';
-	const settings = new Settings(gateway, { id }, id);
+	const { settings } = await createSettings('1');
 
 	// Retrieve key from root folder
 	test.is(settings.size, 2);
@@ -74,11 +77,9 @@ ava('settingsfolder-get', async (test): Promise<void> => {
 ava('settingsfolder-pluck', async (test): Promise<void> => {
 	test.plan(5);
 
-	const { gateway, provider } = await createContext();
-	const id = '2';
-	const settings = new Settings(gateway, { id }, id);
+	const { settings, gateway, provider } = await createSettings('2');
 
-	await provider.create(gateway.name, id, { count: 65 });
+	await provider.create(gateway.name, '2', { count: 65 });
 	await settings.sync();
 
 	test.deepEqual(settings.pluck('count'), [65]);
@@ -89,7 +90,31 @@ ava('settingsfolder-pluck', async (test): Promise<void> => {
 });
 
 ava('settingsfolder-resolve', async (test): Promise<void> => {
-	test.pass();
+	test.plan(4);
+
+	const { settings, gateway, provider } = await createSettings('2');
+
+	await provider.create(gateway.name, '2', { count: 65 });
+	await settings.sync();
+
+	// Check if single value from root's folder is resolved correctly
+	test.deepEqual(await settings.resolve('count'), [65]);
+
+	// Check if multiple values are resolved correctly
+	test.deepEqual(await settings.resolve('count', 'messages'), [65, { hello: null }]);
+
+	// Update and give it an actual value
+	try {
+		await provider.update(gateway.name, '2', { messages: { hello: 'Hello' } });
+		await settings.sync(true);
+		test.deepEqual(await settings.resolve('messages.hello'), [{ data: 'Hello' }]);
+
+		// Invalid path
+		test.deepEqual(await settings.resolve('invalid.path'), [undefined]);
+	} catch (error) {
+		test.log(error.message);
+		test.log(error.stack);
+	}
 });
 
 ava('settingsfolder-reset-single', async (test): Promise<void> => {
@@ -119,18 +144,35 @@ ava('settingsfolder-update-object', async (test): Promise<void> => {
 ava('settingsfolder-tojson', async (test): Promise<void> => {
 	test.plan(2);
 
-	const { gateway, provider } = await createContext();
-	const id = '10';
-	const settings = new Settings(gateway, { id }, id);
+	const { settings, gateway, provider } = await createSettings('9');
 
 	// Non-synced entry should have schema defaults
 	test.deepEqual(settings.toJSON(), { count: null, messages: { hello: null } });
 
-	await provider.create(gateway.name, id, { count: 123 });
+	await provider.create(gateway.name, '9', { count: 123 });
 	await settings.sync();
 
 	// Synced entry should use synced values or schema defaults
 	test.deepEqual(settings.toJSON(), { count: 123, messages: { hello: null } });
+});
+
+ava('snapshot testing', async (test) => {
+	const { settings, gateway, provider } = await createSettings('2');
+
+	await provider.create(gateway.name, '2', { count: 65 });
+	await settings.sync();
+
+	// Settings
+	test.snapshot(settings.clone.toString());
+	test.snapshot(settings.sync.toString());
+	test.snapshot(settings.destroy.toString());
+	test.snapshot(settings.client.toString());
+	test.snapshot(settings.get.toString());
+	test.snapshot(settings.pluck.toString());
+	test.snapshot(settings.resolve.toString());
+	test.snapshot(settings.reset.toString());
+	test.snapshot(settings.update.toString());
+	test.snapshot(settings.toJSON.toString());
 });
 
 interface PreparedContext {
@@ -138,4 +180,8 @@ interface PreparedContext {
 	gateway: Gateway;
 	schema: Schema;
 	provider: Provider;
+}
+
+interface PreparedContextSettings extends PreparedContext {
+	settings: Settings;
 }
