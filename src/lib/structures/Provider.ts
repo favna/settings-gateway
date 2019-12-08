@@ -1,5 +1,5 @@
 import { Piece } from 'klasa';
-import { AnyObject, ReadonlyAnyObject } from '../types';
+import { AnyObject, ReadonlyAnyObject, KeyedObject } from '../types';
 import { SettingsUpdateResults } from '../settings/SettingsFolder';
 import { mergeObjects, makeObject } from '@klasa/utils';
 import { SchemaFolder } from '../schema/SchemaFolder';
@@ -46,14 +46,14 @@ export abstract class Provider extends Piece {
 	 * @param table The table to query
 	 * @param entry The ID of the entry to retrieve
 	 */
-	public abstract get(table: string, entry: string): Promise<KeyedObject | null>;
+	public abstract get(table: string, entry: string): Promise<IdKeyedObject | null>;
 
 	/**
 	 * Retrieve all entries from a table.
 	 * @param table The table to query
 	 * @param entries The ids to retrieve from the table
 	 */
-	public abstract getAll(table: string, entries?: readonly string[]): Promise<KeyedObject[]>;
+	public abstract getAll(table: string, entries?: readonly string[]): Promise<IdKeyedObject[]>;
 
 	/**
 	 * Retrieves all entries' keys from a table.
@@ -136,13 +136,13 @@ export abstract class Provider extends Piece {
 	 * Parse the input from SettingsGateway for this
 	 * @param changes The data that has been updated
 	 */
-	protected parseUpdateInput(changes: ReadonlyAnyObject | SettingsUpdateResults): AnyObject {
-		if (!Array.isArray(changes)) return changes as AnyObject;
-		const updated: AnyObject = {};
+	protected parseUpdateInput(changes: ReadonlyAnyObject | SettingsUpdateResults): KeyedObject {
+		if (!Array.isArray(changes)) return changes as KeyedObject;
+		const updated: KeyedObject = {};
 		for (const change of changes) mergeObjects(updated, makeObject(change.entry.path, change.next));
 		return updated;
 	}
 
 }
 
-export type KeyedObject = AnyObject & { id: string };
+export type IdKeyedObject = AnyObject & { id: string };

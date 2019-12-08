@@ -3,7 +3,7 @@ import { Settings } from './Settings';
 import { SchemaFolder } from '../schema/SchemaFolder';
 import { SchemaEntry } from '../schema/SchemaEntry';
 import { Language } from 'klasa';
-import { Client, SerializableValue, ReadonlyAnyObject, AnyObject } from '../types';
+import { Client, SerializableValue, ReadonlyAnyObject, KeyedObject, ReadonlyKeyedObject } from '../types';
 import { GuildResolvable } from 'discord.js';
 import { isObject, objectToTuples, mergeObjects, makeObject } from '@klasa/utils';
 import arraysStrictEquals from '@klasa/utils/dist/lib/arrayStrictEquals';
@@ -12,7 +12,7 @@ import { fromEntries } from '../polyfills';
 
 /* eslint-disable no-dupe-class-members */
 
-export class SettingsFolder extends Map<string, SerializableValue> {
+export class SettingsFolder extends Map<string, SerializableValue | SettingsFolder> {
 
 	/**
 	 * The reference to the base Settings instance.
@@ -218,7 +218,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			entries = [[pathOrEntries, valueOrOptions as SerializableValue]];
 			options = typeof options === 'undefined' ? {} : options;
 		} else if (isObject(pathOrEntries)) {
-			entries = objectToTuples(pathOrEntries as ReadonlyAnyObject) as [string, SerializableValue][];
+			entries = objectToTuples(pathOrEntries as ReadonlyKeyedObject) as [string, SerializableValue][];
 			options = typeof valueOrOptions === 'undefined' ? {} : valueOrOptions as SettingsFolderUpdateOptions;
 		} else {
 			entries = pathOrEntries as [string, SerializableValue][];
@@ -275,7 +275,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 	}
 
 	protected async _save(context: SettingsUpdateContext): Promise<void> {
-		const updateObject: AnyObject = {};
+		const updateObject: KeyedObject = {};
 		for (const change of context.changes) mergeObjects(updateObject, makeObject(change.entry.path, change.next));
 
 		if (this.base === null) throw new Error('Unreachable.');
@@ -326,12 +326,12 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 		const { serializer } = context.entry;
 		if (serializer === null) throw new Error('The serializer was not available during the resolve.');
 		if (context.entry.array) {
-			return (await Promise.all((values as unknown as readonly SerializableValue[])
+			return (await Promise.all((values as readonly SerializableValue[])
 				.map(value => serializer.resolve(value, context))))
 				.filter(value => value !== null);
 		}
 
-		return serializer.resolve(values, context);
+		return serializer.resolve(values as SerializableValue, context);
 	}
 
 	private _resetSchemaFolder(changes: SettingsUpdateResults, schemaFolder: SchemaFolder, key: string, language: Language, onlyConfigurable: boolean): void {
@@ -441,8 +441,9 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 			return { previous, next: value, entry: context.entry };
 		}
 
-		if (Array.isArray(value)) value = await Promise.all(value.map(val => this._updateSchemaEntryValue(val, context)));
-		else value = [await this._updateSchemaEntryValue(value, context)];
+		value = Array.isArray(value) ?
+			await Promise.all(value.map(val => this._updateSchemaEntryValue(val, context) as Promise<SerializableValue>)) :
+			[await this._updateSchemaEntryValue(value, context) as SerializableValue];
 
 		if (options.arrayAction === ArrayActions.Overwrite) {
 			return { previous, next: value, entry: context.entry };
@@ -496,7 +497,7 @@ export class SettingsFolder extends Map<string, SerializableValue> {
 	private async _updateSchemaEntryValue(value: SerializableValue, context: SerializerUpdateContext): Promise<unknown> {
 		const { serializer } = context.entry;
 		if (serializer === null) throw new Error('The serializer was not available during the update.');
-		const parsed = await serializer.deserialize(value, context);
+		const parsed = await serializer.resolve(value, context);
 		if (context.entry.filter !== null && context.entry.filter(this.client, parsed, context)) throw context.language.get('SETTING_GATEWAY_INVALID_FILTERED_VALUE', context.entry, value);
 		return parsed;
 	}

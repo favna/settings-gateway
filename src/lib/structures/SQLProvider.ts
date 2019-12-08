@@ -1,5 +1,5 @@
-import { Provider, KeyedObject } from './Provider';
-import { ReadonlyAnyObject, SerializableValue } from '../types';
+import { Provider, IdKeyedObject } from './Provider';
+import { ReadonlyAnyObject, SerializableValue, ReadonlyKeyedObject } from '../types';
 import { SettingsUpdateResults } from '../settings/SettingsFolder';
 import { SchemaFolder } from '../schema/SchemaFolder';
 import { SchemaEntry } from '../schema/SchemaEntry';
@@ -52,14 +52,14 @@ export abstract class SQLProvider extends Provider {
 	 * @param table The table to query
 	 * @param entry The ID of the entry to retrieve
 	 */
-	public abstract get(table: string, entry: string): Promise<KeyedObject>;
+	public abstract get(table: string, entry: string): Promise<IdKeyedObject>;
 
 	/**
 	 * Retrieve all entries from a table.
 	 * @param table The table to query
 	 * @param entries The ids to retrieve from the table
 	 */
-	public abstract getAll(table: string, entries?: readonly string[]): Promise<KeyedObject[]>;
+	public abstract getAll(table: string, entries?: readonly string[]): Promise<IdKeyedObject[]>;
 
 	/**
 	 * Retrieves all entries' keys from a table.
@@ -131,13 +131,15 @@ export abstract class SQLProvider extends Provider {
 	 * Parse the input from SettingsGateway for this
 	 * @param changes The data that has been updated
 	 */
+	// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+	// @ts-ignore
 	protected parseUpdateInput(changes: ReadonlyAnyObject | SettingsUpdateResults): [string, SerializableValue][] {
 		if (Array.isArray(changes)) {
 			const entries: [string, SerializableValue][] = [];
 			for (const change of changes) entries.push([change.entry.path, change.next]);
 			return entries;
 		}
-		return objectToTuples(changes) as [string, SerializableValue][];
+		return objectToTuples(changes as ReadonlyKeyedObject) as [string, SerializableValue][];
 	}
 
 }
