@@ -1,5 +1,5 @@
 import ava from 'ava';
-import { Schema, SettingsFolder, Gateway, Provider, Client, Settings, SchemaEntry, AnyObject, SettingsUpdateContext } from '../dist';
+import { Schema, SettingsFolder, Gateway, Provider, Client, Settings, SchemaEntry, AnyObject, SettingsUpdateContext, SettingsExistenceStatus } from '../dist';
 import { createClient } from './lib/MockClient';
 
 async function createSettings(id: string): Promise<PreparedContextSettings> {
@@ -430,20 +430,112 @@ ava('SettingsFolder#reset (Unconfigurable)', async (test): Promise<void> => {
 		await settings.reset('count', { onlyConfigurable: true });
 		test.fail('This Settings#reset call must error.');
 	} catch (error) {
-		test.is(error, '[SETTING_GATEWAY_UNCONFIGURABLE_FOLDER]');
+		test.is(error, '[SETTINGS_GATEWAY_UNCONFIGURABLE_KEY]: count');
 	}
 });
 
-ava('SettingsFolder#update-single', async (test): Promise<void> => {
-	test.pass();
+ava('SettingsFolder#update (Single)', async (test): Promise<void> => {
+	test.plan(7);
+
+	const { settings, gateway, schema, provider } = await createSettings('18');
+	await settings.sync();
+
+	test.is(settings.existenceStatus, SettingsExistenceStatus.NotExists);
+	const results = await settings.update('count', 2);
+	test.is(results.length, 1);
+	test.is(results[0].previous, null);
+	test.is(results[0].next, 2);
+	test.is(results[0].entry, schema.get('count') as SchemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, count: 2 });
+	test.is(settings.existenceStatus, SettingsExistenceStatus.Exists);
 });
 
-ava('SettingsFolder#update-multiple', async (test): Promise<void> => {
-	test.pass();
+ava('SettingsFolder#update (Multiple)', async (test): Promise<void> => {
+	test.plan(8);
+
+	const { settings, gateway, schema, provider } = await createSettings('19');
+	await settings.sync();
+
+	const results = await settings.update([['count', 6], ['uses', [4]]]);
+	test.is(results.length, 2);
+
+	// count
+	test.is(results[0].previous, null);
+	test.is(results[0].next, 6);
+	test.is(results[0].entry, schema.get('count') as SchemaEntry);
+
+	// uses
+	test.deepEqual(results[1].previous, []);
+	test.deepEqual(results[1].next, [4]);
+	test.is(results[1].entry, schema.get('uses') as SchemaEntry);
+
+	// persistence
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, count: 6, uses: [4] });
 });
 
-ava('SettingsFolder#update-object', async (test): Promise<void> => {
-	test.pass();
+ava('SettingsFolder#update (Multiple | Object)', async (test): Promise<void> => {
+	test.plan(8);
+
+	const { settings, gateway, schema, provider } = await createSettings('20');
+	await settings.sync();
+
+	const results = await settings.update({ count: 6, uses: [4] });
+	test.is(results.length, 2);
+
+	// count
+	test.is(results[0].previous, null);
+	test.is(results[0].next, 6);
+	test.is(results[0].entry, schema.get('count') as SchemaEntry);
+
+	// uses
+	test.deepEqual(results[1].previous, []);
+	test.deepEqual(results[1].next, [4]);
+	test.is(results[1].entry, schema.get('uses') as SchemaEntry);
+
+	// persistence
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, count: 6, uses: [4] });
+});
+
+ava('SettingsFolder#update (Uninitialized)', async (test): Promise<void> => {
+	test.plan(1);
+
+	const settings = new SettingsFolder(new Schema());
+	await test.throwsAsync(() => settings.update('count', 6), 'Cannot update keys from a non-ready settings instance.');
+});
+
+ava('SettingsFolder#update (Unsynchronized)', async (test): Promise<void> => {
+	test.plan(1);
+
+	const { settings } = await createSettings('15');
+	await test.throwsAsync(() => settings.update('count', 6), 'Cannot update keys from a pending to synchronize settings instance. Perhaps you want to call `sync()` first.');
+});
+
+ava('SettingsFolder#update (Invalid Key)', async (test): Promise<void> => {
+	test.plan(1);
+
+	const { settings, gateway, provider } = await createSettings('21');
+	await provider.create(gateway.name, settings.id, { messages: { hello: 'world' } });
+	await settings.sync();
+	try {
+		await settings.update('invalid.path', 420);
+		test.fail('This Settings#update call must error.');
+	} catch (error) {
+		test.is(error, '[SETTING_GATEWAY_KEY_NOEXT]: invalid.path');
+	}
+});
+
+ava('SettingsFolder#update (Unconfigurable)', async (test): Promise<void> => {
+	test.plan(1);
+
+	const { settings, gateway, provider } = await createSettings('22');
+	await provider.create(gateway.name, settings.id, { count: 64 });
+	await settings.sync();
+	try {
+		await settings.update('count', 4, { onlyConfigurable: true });
+		test.fail('This Settings#update call must error.');
+	} catch (error) {
+		test.is(error, '[SETTINGS_GATEWAY_UNCONFIGURABLE_KEY]: count');
+	}
 });
 
 ava('SettingsFolder#toJSON', async (test): Promise<void> => {

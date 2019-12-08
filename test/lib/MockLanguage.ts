@@ -9,6 +9,7 @@ export class MockLanguage extends Language {
 			SETTING_GATEWAY_KEY_NOEXT: (key: string): string => `[SETTING_GATEWAY_KEY_NOEXT]: ${key}`,
 			SETTING_GATEWAY_CHOOSE_KEY: (keys: string[]): string => `[SETTING_GATEWAY_CHOOSE_KEY]: ${keys.join(' ')}`,
 			SETTING_GATEWAY_UNCONFIGURABLE_FOLDER: '[SETTING_GATEWAY_UNCONFIGURABLE_FOLDER]',
+			SETTINGS_GATEWAY_UNCONFIGURABLE_KEY: (key: string): string => `[SETTINGS_GATEWAY_UNCONFIGURABLE_KEY]: ${key}`,
 			SETTING_GATEWAY_INVALID_FILTERED_VALUE: (entry: SchemaEntry, value: unknown): string => `[SETTING_GATEWAY_INVALID_FILTERED_VALUE]: ${entry.path} ${value}`,
 			RESOLVER_MINMAX_EXACTLY: (key: string, value: number, inclusive: boolean): string => `[RESOLVER_MINMAX_EXACTLY]: ${key} ${value} ${inclusive}`,
 			RESOLVER_MINMAX_BOTH: (key: string, minimum: number, maximum: number, inclusive: boolean): string => `[RESOLVER_MINMAX_BOTH]: ${key} ${minimum} ${maximum} ${inclusive}`,
