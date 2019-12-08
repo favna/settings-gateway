@@ -10,7 +10,7 @@ export class MockStringSerializer extends Serializer {
 		return String(data);
 	}
 
-	public resolve(data: SerializableValue, { entry, language }: SerializerUpdateContext): string | null {
+	public validate(data: SerializableValue, { entry, language }: SerializerUpdateContext): string | null {
 		const parsed = String(data);
 		return Serializer.minOrMax(parsed.length, entry, language) ? parsed : null;
 	}

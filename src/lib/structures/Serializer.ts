@@ -6,11 +6,23 @@ import { Guild } from 'discord.js';
 export abstract class Serializer extends AliasPiece {
 
 	/**
-	 * The serialize method to be overwritten in actual Serializers.
-	 * @param data The data to serialize
+	 * Resolve a value given directly from the {@link Settings#update} call.
+	 * @param data The data to resolve
+	 * @param context The context in which this serializer is called
 	 */
-	public serialize(data: unknown): SerializableValue {
-		return data as SerializableValue;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	public validate(data: SerializableValue, _context: SerializerUpdateContext): Promise<SerializableValue> | SerializableValue {
+		return data;
+	}
+
+	/**
+	 * Resolve a value given directly from the {@link Settings#resolve} call.
+	 * @param data The data to resolve
+	 * @param context The context in which this serializer is called
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	public resolve(data: SerializableValue, _context: SerializerUpdateContext): unknown {
+		return data;
 	}
 
 	/**
@@ -18,14 +30,18 @@ export abstract class Serializer extends AliasPiece {
 	 * @param data The data to deserialize
 	 * @param context The context in which this serializer is called
 	 */
-	public abstract deserialize(data: SerializableValue, context: SerializerUpdateContext): Promise<unknown> | unknown;
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	public deserialize(data: SerializableValue, _context: SerializerUpdateContext): unknown {
+		return data;
+	}
 
 	/**
-	 * Resolve a value given directly from the {@link Settings#update} call.
-	 * @param data The data to resolve
-	 * @param context The context in which this serializer is called
+	 * The serialize method to be overwritten in actual Serializers.
+	 * @param data The data to serialize
 	 */
-	public abstract resolve(data: SerializableValue, context: SerializerUpdateContext): Promise<SerializableValue> | SerializableValue;
+	public serialize(data: unknown): SerializableValue {
+		return data as SerializableValue;
+	}
 
 	/**
 	 * The stringify method to be overwritten in actual Serializers

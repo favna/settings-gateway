@@ -496,6 +496,181 @@ ava('SettingsFolder#update (Multiple | Object)', async (test): Promise<void> => 
 	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, count: 6, uses: [4] });
 });
 
+ava('SettingsFolder#update (Folder)', async (test): Promise<void> => {
+	test.plan(1);
+
+	const { settings } = await createSettings('22');
+	await settings.sync();
+
+	try {
+		await settings.update('messages', 420);
+		test.fail('This Settings#update call must error.');
+	} catch (error) {
+		test.is(error, '[SETTING_GATEWAY_CHOOSE_KEY]: hello');
+	}
+});
+
+ava('SettingsFolder#update (Not Exists | Default Value)', async (test): Promise<void> => {
+	test.plan(2);
+
+	const { settings, gateway, provider } = await createSettings('23');
+	await settings.sync();
+
+	test.is(await provider.get(gateway.name, settings.id), null);
+	await settings.update('uses', null);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [] });
+});
+
+ava('SettingsFolder#update (Inner-Folder | Not Exists | Default Value)', async (test): Promise<void> => {
+	test.plan(2);
+
+	const { settings, gateway, provider } = await createSettings('23');
+	await settings.sync();
+
+	test.is(await provider.get(gateway.name, settings.id), null);
+	const settingsFolder = settings.get('messages') as SettingsFolder;
+	await settingsFolder.update('hello', null);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, messages: { hello: null } });
+});
+
+ava('SettingsFolder#update (Inner-Folder | Exists)', async (test): Promise<void> => {
+	test.plan(5);
+
+	const { settings, gateway, provider } = await createSettings('24');
+	await settings.sync();
+
+	const settingsFolder = settings.get('messages') as SettingsFolder;
+	const results = await settingsFolder.update('hello', 'world');
+	test.is(results.length, 1);
+	test.is(results[0].previous, null);
+	test.is(results[0].next, 'world');
+	test.is(results[0].entry, gateway.schema.get('messages.hello') as SchemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, messages: { hello: 'world' } });
+});
+
+ava('SettingsFolder#update (Array | Empty)', async (test): Promise<void> => {
+	test.plan(5);
+
+	const { settings, gateway, provider } = await createSettings('25');
+	await settings.sync();
+
+	const schemaEntry = gateway.schema.get('uses') as SchemaEntry;
+	const results = await settings.update('uses', [1, 2]);
+	test.is(results.length, 1);
+	test.is(results[0].previous, schemaEntry.default);
+	test.deepEqual(results[0].next, [1, 2]);
+	test.is(results[0].entry, schemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2] });
+});
+
+ava('SettingsFolder#update (Array | Filled)', async (test): Promise<void> => {
+	test.plan(6);
+
+	const { settings, gateway, schema, provider } = await createSettings('26');
+	await provider.create(gateway.name, settings.id, { uses: [1, 2, 4] });
+	await settings.sync();
+
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2, 4] });
+	const results = await settings.update('uses', [1, 2, 4]);
+	test.is(results.length, 1);
+	test.deepEqual(results[0].previous, [1, 2, 4]);
+	test.deepEqual(results[0].next, []);
+	test.is(results[0].entry, schema.get('uses') as SchemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [] });
+});
+
+ava('SettingsFolder#update (Events | Not Exists)', async (test): Promise<void> => {
+	test.plan(9);
+
+	const { client, schema, settings } = await createSettings('27');
+	await settings.sync();
+
+	const schemaEntry = schema.get('count') as SchemaEntry;
+	client.once('settingsCreate', (emittedSettings: Settings, changes: AnyObject, context: SettingsUpdateContext) => {
+		test.is(emittedSettings, settings);
+		test.deepEqual(changes, { count: 64 });
+		test.is(context.changes.length, 1);
+		test.is(context.changes[0].entry, schemaEntry);
+		test.is(context.changes[0].previous, schemaEntry.default);
+		test.is(context.changes[0].next, 64);
+		test.is(context.extraContext, undefined);
+		test.is(context.guild, null);
+		test.is(context.language, client.languages.get('en-US'));
+	});
+	client.once('settingsUpdate', () => test.fail());
+	await settings.update('count', 64);
+});
+
+ava('SettingsFolder#update (Events | Exists)', async (test): Promise<void> => {
+	test.plan(9);
+
+	const { client, settings, gateway, provider, schema } = await createSettings('28');
+	await provider.create(gateway.name, settings.id, { count: 64 });
+	await settings.sync();
+
+	const schemaEntry = schema.get('count') as SchemaEntry;
+	client.once('settingsCreate', () => test.fail());
+	client.once('settingsUpdate', (emittedSettings: Settings, changes: AnyObject, context: SettingsUpdateContext) => {
+		test.is(emittedSettings, settings);
+		test.deepEqual(changes, { count: 420 });
+		test.is(context.changes.length, 1);
+		test.is(context.changes[0].entry, schemaEntry);
+		test.is(context.changes[0].previous, 64);
+		test.is(context.changes[0].next, 420);
+		test.is(context.extraContext, undefined);
+		test.is(context.guild, null);
+		test.is(context.language, client.languages.get('en-US'));
+	});
+	await settings.update('count', 420);
+});
+
+ava('SettingsFolder#update (Events + Extra | Not Exists)', async (test): Promise<void> => {
+	test.plan(9);
+
+	const { client, settings, schema } = await createSettings('29');
+	await settings.sync();
+
+	const extraContext = Symbol('Hello!');
+	const schemaEntry = schema.get('count') as SchemaEntry;
+	client.once('settingsCreate', (emittedSettings: Settings, changes: AnyObject, context: SettingsUpdateContext) => {
+		test.is(emittedSettings, settings);
+		test.deepEqual(changes, { count: 420 });
+		test.is(context.changes.length, 1);
+		test.is(context.changes[0].entry, schemaEntry);
+		test.is(context.changes[0].previous, schemaEntry.default);
+		test.is(context.changes[0].next, 420);
+		test.is(context.extraContext, extraContext);
+		test.is(context.guild, null);
+		test.is(context.language, client.languages.get('en-US'));
+	});
+	client.once('settingsUpdate', () => test.fail());
+	await settings.update('count', 420, { extraContext });
+});
+
+ava('SettingsFolder#update (Events + Extra | Exists)', async (test): Promise<void> => {
+	test.plan(9);
+
+	const { client, settings, gateway, provider, schema } = await createSettings('30');
+	await provider.create(gateway.name, settings.id, { count: 64 });
+	await settings.sync();
+
+	const extraContext = Symbol('Hello!');
+	const schemaEntry = schema.get('count') as SchemaEntry;
+	client.once('settingsCreate', () => test.fail());
+	client.once('settingsUpdate', (emittedSettings: Settings, changes: AnyObject, context: SettingsUpdateContext) => {
+		test.is(emittedSettings, settings);
+		test.deepEqual(changes, { count: 420 });
+		test.is(context.changes.length, 1);
+		test.is(context.changes[0].entry, schemaEntry);
+		test.is(context.changes[0].previous, 64);
+		test.is(context.changes[0].next, 420);
+		test.is(context.extraContext, extraContext);
+		test.is(context.guild, null);
+		test.is(context.language, client.languages.get('en-US'));
+	});
+	await settings.update('count', 420, { extraContext });
+});
+
 ava('SettingsFolder#update (Uninitialized)', async (test): Promise<void> => {
 	test.plan(1);
 

@@ -410,7 +410,7 @@ export class SettingsFolder extends Map<string, SerializableValue | SettingsFold
 			if (typeof entry === 'undefined') throw language.get('SETTING_GATEWAY_KEY_NOEXT', path);
 			if (entry.type === 'Folder') {
 				const keys = onlyConfigurable ?
-					[...(entry as SchemaFolder).values()].filter(val => val.type !== 'Folder').map(val => val.key) :
+					[...(entry as SchemaFolder).values()].filter(val => val.type !== 'Folder' && (val as SchemaEntry).configurable).map(val => val.key) :
 					[...(entry as SchemaFolder).keys()];
 				throw keys.length > 0 ?
 					language.get('SETTING_GATEWAY_CHOOSE_KEY', keys) :
@@ -497,7 +497,7 @@ export class SettingsFolder extends Map<string, SerializableValue | SettingsFold
 	private async _updateSchemaEntryValue(value: SerializableValue, context: SerializerUpdateContext): Promise<unknown> {
 		const { serializer } = context.entry;
 		if (serializer === null) throw new Error('The serializer was not available during the update.');
-		const parsed = await serializer.resolve(value, context);
+		const parsed = await serializer.validate(value, context);
 		if (context.entry.filter !== null && context.entry.filter(this.client, parsed, context)) throw context.language.get('SETTING_GATEWAY_INVALID_FILTERED_VALUE', context.entry, value);
 		return parsed;
 	}

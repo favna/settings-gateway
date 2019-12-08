@@ -1,4 +1,4 @@
-import { Serializer, SerializableValue, SerializerStore, KeyedObject } from '../../dist';
+import { Serializer, SerializableValue, SerializerStore } from '../../dist';
 
 export class MockObjectSerializer extends Serializer {
 
@@ -6,11 +6,7 @@ export class MockObjectSerializer extends Serializer {
 		super(store, file, directory, { name: 'object' });
 	}
 
-	public deserialize(data: SerializableValue): KeyedObject {
-		return data as KeyedObject;
-	}
-
-	public resolve(data: SerializableValue): KeyedObject | null {
+	public resolve(data: SerializableValue): unknown {
 		return data === null ? null : { data };
 	}
 

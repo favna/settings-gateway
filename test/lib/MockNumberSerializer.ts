@@ -10,7 +10,7 @@ export class MockNumberSerializer extends Serializer {
 		return Number(data);
 	}
 
-	public resolve(data: SerializableValue, { entry, language }: SerializerUpdateContext): number | null {
+	public validate(data: SerializableValue, { entry, language }: SerializerUpdateContext): number | null {
 		let parsed: number;
 		switch (entry.type) {
 			case 'integer':
