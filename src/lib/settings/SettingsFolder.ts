@@ -395,7 +395,7 @@ export class SettingsFolder extends Map<string, SerializableValue | SettingsFold
 	private async _processUpdate(entries: [string, SerializableValue][], options: SettingsFolderUpdateOptions): Promise<SettingsUpdateResults> {
 		const { client, schema } = this;
 		const onlyConfigurable = typeof options.onlyConfigurable === 'undefined' ? false : options.onlyConfigurable;
-		const arrayAction = typeof options.arrayAction === 'undefined' ? ArrayActions.Auto : options.arrayAction;
+		const arrayAction = typeof options.arrayAction === 'undefined' ? ArrayActions.Auto : options.arrayAction as ArrayActions;
 		const arrayIndex = typeof options.arrayIndex === 'undefined' ? null : options.arrayIndex;
 		const guild = client.guilds.resolve(typeof options.guild === 'undefined' ? (this.base as Settings).target as GuildResolvable : options.guild);
 		const language = guild === null ? client.languages.default : guild.language;
@@ -517,7 +517,7 @@ export interface SettingsFolderResetOptions {
 }
 
 export interface SettingsFolderUpdateOptions extends SettingsFolderResetOptions {
-	arrayAction?: ArrayActions;
+	arrayAction?: ArrayActions | ArrayActionsString;
 	arrayIndex?: number | null;
 }
 
@@ -553,6 +553,8 @@ export const enum ArrayActions {
 	Auto = 'auto',
 	Overwrite = 'overwrite'
 }
+
+export type ArrayActionsString = 'add' | 'remove' | 'auto' | 'overwrite';
 
 type PathOrEntries = string | [string, SerializableValue][] | ReadonlyAnyObject;
 type ValueOrOptions = SerializableValue | SettingsFolderUpdateOptions;

@@ -548,7 +548,7 @@ ava('SettingsFolder#update (Inner-Folder | Exists)', async (test): Promise<void>
 	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, messages: { hello: 'world' } });
 });
 
-ava('SettingsFolder#update (Array | Empty)', async (test): Promise<void> => {
+ava('SettingsFolder#update (Array | Empty | Default)', async (test): Promise<void> => {
 	test.plan(5);
 
 	const { settings, gateway, provider } = await createSettings('25');
@@ -563,7 +563,7 @@ ava('SettingsFolder#update (Array | Empty)', async (test): Promise<void> => {
 	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2] });
 });
 
-ava('SettingsFolder#update (Array | Filled)', async (test): Promise<void> => {
+ava('SettingsFolder#update (Array | Filled | Default)', async (test): Promise<void> => {
 	test.plan(6);
 
 	const { settings, gateway, schema, provider } = await createSettings('26');
@@ -577,6 +577,123 @@ ava('SettingsFolder#update (Array | Filled)', async (test): Promise<void> => {
 	test.deepEqual(results[0].next, []);
 	test.is(results[0].entry, schema.get('uses') as SchemaEntry);
 	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [] });
+});
+
+ava('SettingsFolder#update (Array | Empty | Auto)', async (test): Promise<void> => {
+	test.plan(5);
+
+	const { settings, gateway, provider } = await createSettings('25');
+	await settings.sync();
+
+	const schemaEntry = gateway.schema.get('uses') as SchemaEntry;
+	const results = await settings.update('uses', [1, 2], { arrayAction: 'auto' });
+	test.is(results.length, 1);
+	test.is(results[0].previous, schemaEntry.default);
+	test.deepEqual(results[0].next, [1, 2]);
+	test.is(results[0].entry, schemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2] });
+});
+
+ava('SettingsFolder#update (Array | Filled | Auto)', async (test): Promise<void> => {
+	test.plan(6);
+
+	const { settings, gateway, schema, provider } = await createSettings('26');
+	await provider.create(gateway.name, settings.id, { uses: [1, 2, 4] });
+	await settings.sync();
+
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2, 4] });
+	const results = await settings.update('uses', [1, 2, 4], { arrayAction: 'auto' });
+	test.is(results.length, 1);
+	test.deepEqual(results[0].previous, [1, 2, 4]);
+	test.deepEqual(results[0].next, []);
+	test.is(results[0].entry, schema.get('uses') as SchemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [] });
+});
+
+ava('SettingsFolder#update (Array | Empty | Add)', async (test): Promise<void> => {
+	test.plan(5);
+
+	const { settings, gateway, provider } = await createSettings('25');
+	await settings.sync();
+
+	const schemaEntry = gateway.schema.get('uses') as SchemaEntry;
+	const results = await settings.update('uses', [1, 2], { arrayAction: 'add' });
+	test.is(results.length, 1);
+	test.is(results[0].previous, schemaEntry.default);
+	test.deepEqual(results[0].next, [1, 2]);
+	test.is(results[0].entry, schemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2] });
+});
+
+ava('SettingsFolder#update (Array | Filled | Add)', async (test): Promise<void> => {
+	test.plan(6);
+
+	const { settings, gateway, schema, provider } = await createSettings('26');
+	await provider.create(gateway.name, settings.id, { uses: [1, 2, 4] });
+	await settings.sync();
+
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2, 4] });
+	const results = await settings.update('uses', [3, 5, 6], { arrayAction: 'add' });
+	test.is(results.length, 1);
+	test.deepEqual(results[0].previous, [1, 2, 4]);
+	test.deepEqual(results[0].next, [1, 2, 4, 3, 5, 6]);
+	test.is(results[0].entry, schema.get('uses') as SchemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2, 4, 3, 5, 6] });
+});
+
+ava('SettingsFolder#update (Array | Empty | Remove)', async (test): Promise<void> => {
+	test.plan(1);
+
+	const { settings } = await createSettings('25');
+	await settings.sync();
+	await test.throwsAsync(() => settings.update('uses', [1, 2], { arrayAction: 'remove' }), 'The value 1 for the key uses does not exist.');
+});
+
+ava('SettingsFolder#update (Array | Filled | Remove)', async (test): Promise<void> => {
+	test.plan(5);
+
+	const { settings, gateway, provider } = await createSettings('26');
+	await provider.create(gateway.name, settings.id, { uses: [1, 2, 4] });
+	await settings.sync();
+
+	const schemaEntry = gateway.schema.get('uses') as SchemaEntry;
+	const results = await settings.update('uses', [1, 2], { arrayAction: 'remove' });
+	test.is(results.length, 1);
+	test.deepEqual(results[0].previous, [1, 2, 4]);
+	test.deepEqual(results[0].next, [4]);
+	test.is(results[0].entry, schemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [4] });
+});
+
+ava('SettingsFolder#update (Array | Empty | Overwrite)', async (test): Promise<void> => {
+	test.plan(5);
+
+	const { settings, gateway, provider } = await createSettings('25');
+	await settings.sync();
+
+	const schemaEntry = gateway.schema.get('uses') as SchemaEntry;
+	const results = await settings.update('uses', [1, 2, 4], { arrayAction: 'overwrite' });
+	test.is(results.length, 1);
+	test.is(results[0].previous, schemaEntry.default);
+	test.deepEqual(results[0].next, [1, 2, 4]);
+	test.is(results[0].entry, schemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2, 4] });
+});
+
+ava('SettingsFolder#update (Array | Filled | Overwrite)', async (test): Promise<void> => {
+	test.plan(6);
+
+	const { settings, gateway, schema, provider } = await createSettings('26');
+	await provider.create(gateway.name, settings.id, { uses: [1, 2, 4] });
+	await settings.sync();
+
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [1, 2, 4] });
+	const results = await settings.update('uses', [3, 5, 6], { arrayAction: 'overwrite' });
+	test.is(results.length, 1);
+	test.deepEqual(results[0].previous, [1, 2, 4]);
+	test.deepEqual(results[0].next, [3, 5, 6]);
+	test.is(results[0].entry, schema.get('uses') as SchemaEntry);
+	test.deepEqual(await provider.get(gateway.name, settings.id), { id: settings.id, uses: [3, 5, 6] });
 });
 
 ava('SettingsFolder#update (Events | Not Exists)', async (test): Promise<void> => {
