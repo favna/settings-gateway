@@ -98,6 +98,72 @@ export class SettingsFolder extends Map<string, SerializableValue | SettingsFold
 		}));
 	}
 
+	/**
+	 * Resets all keys from this settings folder.
+	 * @example
+	 * // Resets all entries:
+	 * await message.guild.settings.reset();
+	 *
+	 * @example
+	 * // Resets all entries from a folder:
+	 * await message.guild.settings.get('roles').reset();
+	 */
+	public async reset(): Promise<SettingsUpdateResults>;
+	/**
+	 * Resets a key from this settings folder.
+	 * @param path The path of the key to reset from this settings folder
+	 * @param options The options for this action
+	 * @example
+	 * // Resets an entry:
+	 * await message.guild.settings.reset('prefix');
+	 *
+	 * @example
+	 * // Resets an entry contained by a folder:
+	 * await message.guild.settings.reset('roles.administrator');
+	 *
+	 * @example
+	 * // Resets an entry from a folder:
+	 * await message.guild.settings.get('roles').reset('administrator');
+	 */
+	public async reset(path: string, options?: Readonly<SettingsFolderResetOptions>): Promise<SettingsUpdateResults>;
+	/**
+	 * Resets multiple keys from this settings folder.
+	 * @param paths The paths of the keys to reset from this settings folder
+	 * @param options The options for this action
+	 * @example
+	 * // Resets an entry:
+	 * await message.guild.settings.reset(['prefix']);
+	 *
+	 * @example
+	 * // Resets multiple entries:
+	 * await message.guild.settings.reset(['prefix', 'roles.administrator']);
+	 *
+	 * @example
+	 * // Resets a key and an entire folder:
+	 * await message.guild.settings.reset(['prefix', 'roles']);
+	 */
+	public async reset(paths: readonly string[], options?: Readonly<SettingsFolderResetOptions>): Promise<SettingsUpdateResults>;
+	/**
+	 * Resets multiple keys from this settings folder.
+	 * @param object The object to retrieve the paths of the keys to reset from this settings folder
+	 * @param options The options for this action
+	 * @example
+	 * // Resets an entry:
+	 * await message.guild.settings.reset({ prefix: null });
+	 *
+	 * @example
+	 * // Resets multiple entries with a regular object:
+	 * await message.guild.settings.reset({ prefix: null, roles: { administrator: null } });
+	 *
+	 * @example
+	 * // Resets multiple entries with a dotted object:
+	 * await message.guild.settings.reset({ prefix: null, 'roles.administrator': null });
+	 *
+	 * @example
+	 * // Resets a key and an entire folder:
+	 * await message.guild.settings.reset({ prefix: null, roles: null });
+	 */
+	public async reset(object: ReadonlyAnyObject, options?: Readonly<SettingsFolderResetOptions>): Promise<SettingsUpdateResults>;
 	public async reset(paths: string | ReadonlyAnyObject | readonly string[] = [...this.keys()], options: Readonly<SettingsFolderResetOptions> = {}): Promise<SettingsUpdateResults> {
 		if (this.base === null) {
 			throw new Error('Cannot reset keys from a non-ready settings instance.');
@@ -228,6 +294,9 @@ export class SettingsFolder extends Map<string, SerializableValue | SettingsFold
 		return this._processUpdate(entries, options);
 	}
 
+	/**
+	 * Overload to serialize this entry to JSON.
+	 */
 	public toJSON(): SettingsFolderJson {
 		const json: SettingsFolderJson = {};
 		for (const [key, value] of super.entries()) {

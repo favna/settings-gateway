@@ -87,11 +87,18 @@ export class SchemaEntry {
 		this.shouldResolve = typeof options.resolve === 'undefined' ? true : options.resolve;
 	}
 
+	/**
+	 * Get the serializer that manages this instance.
+	 */
 	public get serializer(): Serializer | null {
 		if (this.client === null) throw new Error('Cannot retrieve serializers from non-initialized SchemaEntry.');
 		return this.client.serializers.get(this.type) || null;
 	}
 
+	/**
+	 * Edits this SchemaEntry instance.
+	 * @param options The options to edit
+	 */
 	public edit(options: SchemaEntryEditOptions = {}): this {
 		if (typeof options.type === 'string') this.type = options.type.toLowerCase();
 		if (typeof options.array !== 'undefined') this.array = options.array;
@@ -110,6 +117,10 @@ export class SchemaEntry {
 		return this;
 	}
 
+	/**
+	 * Performs the validity checks of this entry
+	 * @internal
+	 */
 	public check(): void {
 		if (this.client === null) throw new Error('Cannot retrieve serializers from non-initialized SchemaEntry.');
 
@@ -141,6 +152,9 @@ export class SchemaEntry {
 		}
 	}
 
+	/**
+	 * Overload to serialize this entry to JSON.
+	 */
 	public toJSON(): SchemaEntryJson {
 		return {
 			type: this.type,
@@ -154,6 +168,9 @@ export class SchemaEntry {
 		};
 	}
 
+	/**
+	 * The default value generator, called when type and array are given but not the default itself.
+	 */
 	private generateDefaultValue(): SerializableValue {
 		if (this.array) return [];
 		if (this.type === 'boolean') return false;

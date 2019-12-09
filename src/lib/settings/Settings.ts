@@ -4,9 +4,25 @@ import { IdKeyedObject } from '../structures/Provider';
 
 export class Settings extends SettingsFolder {
 
+	/**
+	 * The ID of the database entry this instance manages.
+	 */
 	public readonly id: string;
+
+	/**
+	 * The gateway that manages this instance.
+	 */
 	public readonly gateway: Gateway;
+
+	/**
+	 * The holder of this instance.
+	 */
 	public readonly target: unknown;
+
+	/**
+	 * The existence status of this entry.
+	 * @internal
+	 */
 	public existenceStatus: SettingsExistenceStatus;
 
 	public constructor(gateway: Gateway, target: unknown, id: string) {
