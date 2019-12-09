@@ -18,11 +18,15 @@ NOTE: For the contributors, you add new entries to this document following this 
 - [[#1][]] Added examples for a large set of methods. (kyranet)
 - [[#1][]] Added bare `null` as an option to reset a key in `SettingsFolder`#{`update`}. (kyranet)
 - [[#1][]] Added `Serializer`#{`validate`,`resolve`} to allow further control on how SettingsGateway handles the data. (kyranet)
+- [[#1][]] Added `context` to the `settingsUpdate` and `settingsCreate` events, they contain the raw changes, guild, language, etc. (kyranet)
+- [[#1][]] Added `extraContext` to the `SettingsFolderResetOptions` type, this value is pased in all places (`Serializer`#`validate`, `SchemaEntry`#`filter`, `settingsUpdate` and `settingsCreate` events, and more). (kyranet)
 
 ### Changed
 
+- [[#1][]] Tweaked `Serializer`#`deserialize`'s arguments to (`SerializableValue`, `SerializerUpdateContext`). (kyranet)
 - [[#1][]] Renamed `SchemaEntry`#{`min`,`max`} to `SchemaEntry`#{`minimum`,`maximum`}. (kyranet)
 - [[#1][]] Tweaked `SettingsFolder`'s value type to be more accurate. (kyranet)
+- [[#1][]] Tweaked `SettingsFolderUpdateOptions`'s option to produce a TypeScript compiler error when `arrayAction` is set to `'overwrite'` and `arrayIndex` is defined. (kyranet)
 - [[#1][]] Tweaked `SettingsFolder`#`client` to throw an error when it's uninitialized. (kyranet)
 - [[#1][]] Tweaked `SettingsFolder`#{`reset`,`update`} to return a much more useful struct. (kyranet)
 - [[#1][]] When specifying `arrayIndex` in `SettingsFolder`#`update` and `arrayAction` is defined as `add`, all entries will be inserted at given index. (kyranet)

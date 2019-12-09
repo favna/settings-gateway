@@ -291,7 +291,7 @@ export class SettingsFolder extends Map<string, SerializableValue | SettingsFold
 			options = typeof valueOrOptions === 'undefined' ? {} : valueOrOptions as SettingsFolderUpdateOptions;
 		}
 
-		return this._processUpdate(entries, options);
+		return this._processUpdate(entries, options as InternalRawFolderUpdateOptions);
 	}
 
 	/**
@@ -461,7 +461,7 @@ export class SettingsFolder extends Map<string, SerializableValue | SettingsFold
 		}
 	}
 
-	private async _processUpdate(entries: [string, SerializableValue][], options: SettingsFolderUpdateOptions): Promise<SettingsUpdateResults> {
+	private async _processUpdate(entries: [string, SerializableValue][], options: InternalRawFolderUpdateOptions): Promise<SettingsUpdateResults> {
 		const { client, schema } = this;
 		const onlyConfigurable = typeof options.onlyConfigurable === 'undefined' ? false : options.onlyConfigurable;
 		const arrayAction = typeof options.arrayAction === 'undefined' ? ArrayActions.Auto : options.arrayAction as ArrayActions;
@@ -586,10 +586,16 @@ export interface SettingsFolderResetOptions {
 	extraContext?: unknown;
 }
 
-export interface SettingsFolderUpdateOptions extends SettingsFolderResetOptions {
-	arrayAction?: ArrayActions | ArrayActionsString;
+export interface SettingsFolderUpdateOptionsOverwrite {
+	arrayAction: ArrayActions.Overwrite | 'overwrite';
+}
+
+export interface SettingsFolderUpdateOptionsNonOverwrite {
+	arrayAction?: ArrayActions.Add | ArrayActions.Auto | ArrayActions.Remove | 'add' | 'auto' | 'remove';
 	arrayIndex?: number | null;
 }
+
+export type SettingsFolderUpdateOptions = (SettingsFolderUpdateOptionsOverwrite | SettingsFolderUpdateOptionsNonOverwrite) & SettingsFolderResetOptions;
 
 export interface FolderUpdateContext extends Omit<SerializerUpdateContext, 'entry'> {
 	folder: SchemaFolder;
@@ -628,3 +634,4 @@ export type ArrayActionsString = 'add' | 'remove' | 'auto' | 'overwrite';
 
 type PathOrEntries = string | [string, SerializableValue][] | ReadonlyAnyObject;
 type ValueOrOptions = SerializableValue | SettingsFolderUpdateOptions;
+type InternalRawFolderUpdateOptions = SettingsFolderUpdateOptions & SettingsFolderUpdateOptionsNonOverwrite;
