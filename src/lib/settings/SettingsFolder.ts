@@ -451,6 +451,7 @@ export class SettingsFolder extends Map<string, SerializableValue | SettingsFold
 
 		const next = value as readonly SerializableValue[];
 		const clone = (previous as readonly SerializableValue[]).slice(0);
+
 		if (options.arrayIndex !== null) {
 			if (options.arrayIndex < 0 || options.arrayIndex > clone.length + 1) {
 				throw new Error(`The index ${options.arrayIndex} is bigger than the current array. It must be a value in the range of 0..${clone.length + 1}.`);
@@ -458,10 +459,10 @@ export class SettingsFolder extends Map<string, SerializableValue | SettingsFold
 
 			if (options.arrayAction === ArrayActions.Add) {
 				clone.splice(options.arrayIndex, 0, ...next);
-			} else if (options.arrayAction === ArrayActions.Remove || next[0] === null) {
-				clone.splice(options.arrayIndex, 1);
+			} else if (options.arrayAction === ArrayActions.Remove || next.every(nv => nv === null)) {
+				clone.splice(options.arrayIndex, next.length);
 			} else {
-				[clone[options.arrayIndex]] = next;
+				clone.splice(options.arrayIndex, next.length, ...next);
 			}
 		} else if (options.arrayAction === ArrayActions.Auto) {
 			// Array action auto must add or remove values, depending on their existence
